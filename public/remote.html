@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Slide Controller</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    html, body {
+      height: 100%;
+      background-color: var(--color-canvas);
+      color: var(--color-ink);
+      font-family: var(--font-family);
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      overflow: hidden;
+    }
+
+    .view-container {
+      display: none;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      flex-direction: column;
+    }
+
+    .view-container.active {
+      display: flex;
+    }
+
+    /* --------------------------------------------------------------------------
+       Top Bar (Icon Buttons, Zero Borders)
+       -------------------------------------------------------------------------- */
+    .bar {
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      flex-shrink: 0;
+    }
+
+    .bar-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Circular / Square Borderless Icon Buttons */
+    .btn-icon {
+      width: 40px;
+      height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: none;
+      color: var(--color-ink);
+      cursor: pointer;
+      border-radius: 50%;
+      transition: background-color 0.12s ease, transform 0.08s ease;
+      padding: 0;
+      flex-shrink: 0;
+    }
+
+    .btn-icon:hover {
+      background: var(--color-surface-1);
+    }
+
+    .btn-icon:active {
+      background: var(--color-surface-2);
+      transform: scale(0.92);
+    }
+
+    .slide-badge {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--color-ink-muted);
+      letter-spacing: -0.5px;
+      padding: 0 4px;
+    }
+
+    /* --------------------------------------------------------------------------
+       Menu View (Icon & Symbol Centric Grid)
+       -------------------------------------------------------------------------- */
+    .menu-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+      gap: 14px;
+      max-width: 360px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .menu-card {
+      width: 100%;
+      height: 84px;
+      background: var(--color-surface-1);
+      border: none;
+      color: var(--color-ink);
+      cursor: pointer;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      transition: background-color 0.15s ease, transform 0.08s ease;
+      font-family: var(--font-family);
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+    }
+
+    .menu-card:hover {
+      background: var(--color-surface-2);
+    }
+
+    .menu-card:active {
+      transform: scale(0.98);
+      background: #d4d4d4;
+    }
+
+    .menu-card.primary {
+      background: var(--color-ink);
+      color: #ffffff;
+    }
+
+    .menu-card.primary:hover {
+      background: #2a2a2a;
+    }
+
+    .menu-card.primary:active {
+      background: #000000;
+    }
+
+    /* --------------------------------------------------------------------------
+       Remote View (Icon Centric, Borderless)
+       -------------------------------------------------------------------------- */
+    .button-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 10px;
+      min-height: 0;
+    }
+
+    .btn-remote-prev {
+      flex: 3;
+      background-color: var(--color-surface-1);
+      border: none;
+      color: var(--color-ink);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: 14px;
+      touch-action: none;
+      transition: background-color 0.1s ease;
+    }
+
+    .btn-remote-prev:hover {
+      background-color: var(--color-surface-2);
+    }
+
+    .btn-remote-prev:active, .btn-remote-prev.pressed {
+      background-color: #d8d8d8;
+    }
+
+    .btn-remote-next {
+      flex: 7;
+      background-color: var(--color-primary);
+      border: none;
+      color: var(--color-on-primary);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: 14px;
+      touch-action: none;
+      position: relative;
+      transition: background-color 0.1s ease;
+    }
+
+    .btn-remote-next:hover {
+      background-color: var(--color-blue-hover);
+    }
+
+    .btn-remote-next:active, .btn-remote-next.pressed {
+      background-color: var(--color-blue-80);
+    }
+
+    .timer-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 10px;
+    }
+
+    .timer-text {
+      font-family: var(--font-mono);
+      font-size: 60px;
+      font-weight: 600;
+      letter-spacing: -1px;
+      line-height: 1;
+      color: #ffffff;
+    }
+
+    .btn-pause {
+      width: 44px;
+      height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.22);
+      border: none;
+      outline: none;
+      color: #ffffff;
+      padding: 0;
+      border-radius: 50%;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background-color 0.1s ease, transform 0.08s ease;
+    }
+
+    .btn-pause:active {
+      background: rgba(255, 255, 255, 0.4);
+      transform: scale(0.92);
+    }
+
+    .btn-pause.paused {
+      background: #ffffff;
+      color: var(--color-ink);
+    }
+
+    .btn-pause .icon-play { display: block; margin-left: 2px; }
+    .btn-pause .icon-pause { display: none; }
+    .btn-pause:not(.paused) .icon-play { display: none; }
+    .btn-pause:not(.paused) .icon-pause { display: block; }
+
+    /* --------------------------------------------------------------------------
+       Modal (Icon Focused, Soft Elevation, No Box Borders)
+       -------------------------------------------------------------------------- */
+    .modal-backdrop {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 300;
+      padding: 16px;
+    }
+
+    .modal-backdrop.active {
+      display: flex;
+    }
+
+    .modal-panel {
+      background: var(--color-canvas);
+      border: none;
+      box-shadow: 0 20px 48px rgba(0, 0, 0, 0.2);
+      width: 100%;
+      max-width: 360px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 24px;
+      border-radius: 16px;
+    }
+
+    .modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .tab-bar {
+      display: flex;
+      background: var(--color-surface-1);
+      padding: 4px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+
+    .tab-item {
+      flex: 1;
+      height: 36px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: none;
+      color: var(--color-ink-muted);
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.12s ease;
+    }
+
+    .tab-item.active {
+      background: #ffffff;
+      color: var(--color-ink);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    }
+
+    .qr-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 4px 0 12px;
+    }
+
+    .qr-img {
+      display: block;
+      width: 200px;
+      height: 200px;
+      background: #ffffff;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+
+    .url-row {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      background: var(--color-surface-1);
+      border-radius: 8px;
+      padding: 4px 4px 4px 12px;
+    }
+
+    .url-text {
+      flex: 1;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--color-ink);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Camera Scanner Viewport */
+    .scanner-viewport {
+      position: relative;
+      width: 100%;
+      height: 280px;
+      background: #111111;
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #scanVideo {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .scanner-reticle {
+      position: absolute;
+      width: 180px;
+      height: 180px;
+      pointer-events: none;
+    }
+
+    .scanner-reticle .corner {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      border-color: #ffffff;
+      border-style: solid;
+      border-width: 0;
+    }
+
+    .scanner-reticle .corner.tl {
+      top: 0; left: 0;
+      border-top-width: 3px;
+      border-left-width: 3px;
+      border-top-left-radius: 6px;
+    }
+
+    .scanner-reticle .corner.tr {
+      top: 0; right: 0;
+      border-top-width: 3px;
+      border-right-width: 3px;
+      border-top-right-radius: 6px;
+    }
+
+    .scanner-reticle .corner.bl {
+      bottom: 0; left: 0;
+      border-bottom-width: 3px;
+      border-left-width: 3px;
+      border-bottom-left-radius: 6px;
+    }
+
+    .scanner-reticle .corner.br {
+      bottom: 0; right: 0;
+      border-bottom-width: 3px;
+      border-right-width: 3px;
+      border-bottom-right-radius: 6px;
+    }
+
+    /* Settings in Modal */
+    .time-inputs {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .time-input {
+      flex: 1;
+      background: var(--color-surface-1);
+      border: none;
+      color: var(--color-ink);
+      font-family: var(--font-mono);
+      font-size: 22px;
+      font-weight: 500;
+      padding: 10px;
+      text-align: center;
+      border-radius: 8px;
+      outline: none;
+    }
+
+    .preset-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .preset-btn {
+      background: var(--color-surface-1);
+      border: none;
+      color: var(--color-ink);
+      font-family: var(--font-family);
+      font-size: 13px;
+      font-weight: 500;
+      padding: 12px 4px;
+      cursor: pointer;
+      text-align: center;
+      border-radius: 8px;
+      transition: background-color 0.1s ease;
+    }
+
+    .preset-btn:hover {
+      background: var(--color-surface-2);
+    }
+
+    .preset-btn.selected {
+      background: var(--color-ink);
+      color: #ffffff;
+    }
+
+    .toggle-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 0;
+      font-size: 13px;
+      color: var(--color-ink);
+      margin-bottom: 20px;
+      border-top: 1px solid var(--color-surface-1);
+      border-bottom: 1px solid var(--color-surface-1);
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .flash-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+      background: rgba(15, 98, 254, 0);
+      transition: background 0.08s ease-out;
+      z-index: 200;
+    }
+
+    .flash-overlay.active {
+      background: rgba(15, 98, 254, 0.08);
+    }
+
+    #fallbackVideo {
+      position: fixed;
+      width: 1px;
+      height: 1px;
+      opacity: 0.01;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+  <video id="fallbackVideo" playsinline loop muted>
+    <source src="data:video/mp4;base64,AAAAHGZ0eXBtcDQyAAAAAG1wNDJpc29tYXZjMQAAAAhmcmVlAAAGB21kYXQh" type="video/mp4">
+  </video>
+
+  <div id="flashOverlay" class="flash-overlay"></div>
+
+  <!-- 1. Menu View -->
+  <div id="viewToolMenu" class="view-container active">
+    <header class="bar">
+      <div class="bar-group">
+        <span class="status-dot" id="menuWsDot"></span>
+      </div>
+      <div class="bar-group">
+        <!-- Scan Camera Icon -->
+        <button type="button" id="btnMenuScan" class="btn-icon" aria-label="Scan Camera">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+            <circle cx="12" cy="13" r="4"></circle>
+          </svg>
+        </button>
+
+        <!-- QR Code Icon -->
+        <button type="button" id="btnMenuConnect" class="btn-icon" aria-label="Connect QR">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="6" height="6"></rect>
+            <rect x="15" y="3" width="6" height="6"></rect>
+            <rect x="3" y="15" width="6" height="6"></rect>
+            <path d="M15 15h2v2h-2z"></path>
+            <path d="M19 15v4h2"></path>
+            <path d="M15 19v2"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="menu-body">
+      <!-- Slide Switch Card -->
+      <button type="button" class="menu-card primary" id="cardSlideSwitch" aria-label="Slide Switch">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+          <line x1="8" y1="21" x2="16" y2="21"></line>
+          <line x1="12" y1="17" x2="12" y2="21"></line>
+          <polygon points="10 8 15 10 10 12" fill="currentColor"></polygon>
+        </svg>
+        <span>Slides</span>
+      </button>
+
+      <!-- Scan Camera Card -->
+      <button type="button" class="menu-card" id="cardScanCamera" aria-label="Scan Camera">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+          <circle cx="12" cy="13" r="4"></circle>
+        </svg>
+        <span>Scan</span>
+      </button>
+
+      <!-- Connect QR Card -->
+      <button type="button" class="menu-card" id="cardConnectQr" aria-label="Connect QR">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="6" height="6"></rect>
+          <rect x="15" y="3" width="6" height="6"></rect>
+          <rect x="3" y="15" width="6" height="6"></rect>
+          <path d="M15 15h2v2h-2z"></path>
+          <path d="M19 15v4h2"></path>
+          <path d="M15 19v2"></path>
+        </svg>
+        <span>QR Code</span>
+      </button>
+    </main>
+  </div>
+
+  <!-- 2. Slide Switch View -->
+  <div id="viewSlideSwitch" class="view-container">
+    <header class="bar">
+      <div class="bar-group">
+        <!-- Back Icon -->
+        <button type="button" id="btnBackToMenu" class="btn-icon" aria-label="Menu">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+        </button>
+
+        <!-- QR Shortcut Icon -->
+        <button type="button" id="btnRemoteQr" class="btn-icon" aria-label="QR Code">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="6" height="6"></rect>
+            <rect x="15" y="3" width="6" height="6"></rect>
+            <rect x="3" y="15" width="6" height="6"></rect>
+            <path d="M15 15h2v2h-2z"></path>
+            <path d="M19 15v4h2"></path>
+            <path d="M15 19v2"></path>
+          </svg>
+        </button>
+
+        <span class="status-dot" id="remoteWsDot"></span>
+      </div>
+
+      <div class="bar-group">
+        <span class="slide-badge" id="slideNum">1</span>
+
+        <!-- Settings Gear Icon -->
+        <button type="button" id="settingsBtn" class="btn-icon" aria-label="Settings">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="button-container" id="remoteArea">
+      <!-- PREV: Icon Centered -->
+      <div class="btn-remote-prev" id="btnPrev" role="button" tabindex="0" aria-label="Previous">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+      </div>
+
+      <!-- NEXT: Timer + Play/Pause + Icon -->
+      <div class="btn-remote-next" id="btnNext" role="button" tabindex="0" aria-label="Next">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+
+        <div class="timer-row">
+          <span class="timer-text" id="mainTimerText">10:00</span>
+          <button type="button" class="btn-pause paused" id="pauseBtn" aria-label="Play or Pause">
+            <svg class="icon-play" width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
+              <polygon points="3,1 15,8 3,15"/>
+            </svg>
+            <svg class="icon-pause" width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
+              <rect x="3" y="2" width="3.5" height="12"/>
+              <rect x="9.5" y="2" width="3.5" height="12"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- 3. Connect Modal (Icon Head & Controls) -->
+  <div id="connectModal" class="modal-backdrop">
+    <div class="modal-panel">
+      <div class="modal-head">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="6" height="6"></rect>
+          <rect x="15" y="3" width="6" height="6"></rect>
+          <rect x="3" y="15" width="6" height="6"></rect>
+          <path d="M15 15h2v2h-2z"></path>
+          <path d="M19 15v4h2"></path>
+          <path d="M15 19v2"></path>
+        </svg>
+
+        <button type="button" class="btn-icon" id="connectCloseX" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Cloud / Wi-Fi Icon Tabs -->
+      <div class="tab-bar">
+        <button type="button" id="tabTunnel" class="tab-item active" aria-label="Tunnel">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+          </svg>
+        </button>
+        <button type="button" id="tabLocal" class="tab-item" aria-label="Local">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+            <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+            <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+            <line x1="12" y1="20" x2="12.01" y2="20"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="qr-box">
+        <img id="qrImage" class="qr-img" src="" alt="QR">
+        <div class="url-row">
+          <span class="url-text" id="remoteUrlDisplay"></span>
+          <button type="button" id="copyUrlBtn" class="btn-icon" style="width: 32px; height: 32px;" aria-label="Copy">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Camera Scanner Modal (Borderless, Dark Viewfinder) -->
+  <div id="cameraModal" class="modal-backdrop">
+    <div class="modal-panel" style="background: #000000; color: #ffffff; padding: 20px; max-width: 380px;">
+      <div class="modal-head" style="margin-bottom: 16px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+          <circle cx="12" cy="13" r="4"></circle>
+        </svg>
+
+        <button type="button" class="btn-icon" id="cameraCloseX" style="color: #ffffff;" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Viewfinder -->
+      <div class="scanner-viewport">
+        <video id="scanVideo" autoplay playsinline muted></video>
+        <div class="scanner-reticle">
+          <div class="corner tl"></div>
+          <div class="corner tr"></div>
+          <div class="corner bl"></div>
+          <div class="corner br"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. Settings Modal (Icon Controls) -->
+  <div id="settingsBackdrop" class="modal-backdrop">
+    <div class="modal-panel">
+      <div class="modal-head">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+
+        <button type="button" class="btn-icon" id="settingsCloseX" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="time-inputs">
+        <input type="number" id="inputMinutes" class="time-input" value="10" min="0" max="180">
+        <span style="font-family: var(--font-mono); font-weight: 600;">:</span>
+        <input type="number" id="inputSeconds" class="time-input" value="0" min="0" max="59" step="5">
+        <button type="button" id="applyTimeBtn" class="btn-icon" style="background: var(--color-ink); color: #ffffff; border-radius: 8px; width: 44px; height: 44px;" aria-label="Set">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </button>
+      </div>
+
+      <div class="preset-grid">
+        <button type="button" class="preset-btn" data-mins="3" data-secs="0">3m</button>
+        <button type="button" class="preset-btn" data-mins="5" data-secs="0">5m</button>
+        <button type="button" class="preset-btn selected" data-mins="10" data-secs="0">10m</button>
+        <button type="button" class="preset-btn" data-mins="15" data-secs="0">15m</button>
+        <button type="button" class="preset-btn" data-mins="20" data-secs="0">20m</button>
+        <button type="button" class="preset-btn" data-mins="0" data-secs="0">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="19" x2="12" y2="5"></line>
+            <polyline points="5 12 12 5 19 12"></polyline>
+          </svg>
+        </button>
+      </div>
+
+      <div class="toggle-row">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        </div>
+        <input type="checkbox" id="toggleAwake" checked style="accent-color: var(--color-primary); width: 18px; height: 18px; cursor: pointer;">
+      </div>
+
+      <div class="modal-actions">
+        <!-- Reset Icon Button -->
+        <button type="button" id="resetTimerBtn" class="btn-icon" aria-label="Reset Timer">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="1 4 1 10 7 10"></polyline>
+            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+          </svg>
+        </button>
+
+        <!-- Done / Confirm Icon Button -->
+        <button type="button" id="settingsDoneBtn" class="btn-icon" style="background: var(--color-ink); color: #ffffff;" aria-label="Done">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --------------------------------------------------------------------------
+    // View Switcher
+    // --------------------------------------------------------------------------
+    function switchView(viewId) {
+      document.querySelectorAll('.view-container').forEach(el => el.classList.remove('active'));
+      const target = document.getElementById(viewId);
+      if (target) {
+        target.classList.add('active');
+        window.scrollTo(0, 0);
+      }
+    }
+
+    const cardSlideSwitch = document.getElementById('cardSlideSwitch');
+    const btnBackToMenu = document.getElementById('btnBackToMenu');
+
+    if (cardSlideSwitch) cardSlideSwitch.addEventListener('click', () => switchView('viewSlideSwitch'));
+    if (btnBackToMenu) btnBackToMenu.addEventListener('click', () => switchView('viewToolMenu'));
+
+    // --------------------------------------------------------------------------
+    // Connect QR Modal
+    // --------------------------------------------------------------------------
+    const connectModal = document.getElementById('connectModal');
+    const btnMenuConnect = document.getElementById('btnMenuConnect');
+    const cardConnectQr = document.getElementById('cardConnectQr');
+    const btnRemoteQr = document.getElementById('btnRemoteQr');
+    const connectCloseX = document.getElementById('connectCloseX');
+
+    function openConnectModal() { connectModal.classList.add('active'); }
+    function closeConnectModal() { connectModal.classList.remove('active'); }
+
+    if (btnMenuConnect) btnMenuConnect.addEventListener('click', openConnectModal);
+    if (cardConnectQr) cardConnectQr.addEventListener('click', openConnectModal);
+    if (btnRemoteQr) btnRemoteQr.addEventListener('click', openConnectModal);
+    if (connectCloseX) connectCloseX.addEventListener('click', closeConnectModal);
+
+    connectModal.addEventListener('click', (e) => {
+      if (e.target === connectModal) closeConnectModal();
+    });
+
+    // --------------------------------------------------------------------------
+    // Camera Scanner Modal (QR Reader)
+    // --------------------------------------------------------------------------
+    const cameraModal = document.getElementById('cameraModal');
+    const cardScanCamera = document.getElementById('cardScanCamera');
+    const btnMenuScan = document.getElementById('btnMenuScan');
+    const cameraCloseX = document.getElementById('cameraCloseX');
+    const scanVideo = document.getElementById('scanVideo');
+
+    let cameraStream = null;
+    let scanInterval = null;
+    let barcodeDetector = null;
+
+    if ('BarcodeDetector' in window) {
+      try {
+        barcodeDetector = new BarcodeDetector({ formats: ['qr_code'] });
+      } catch (e) {}
+    }
+
+    async function openCameraScanner() {
+      cameraModal.classList.add('active');
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+          audio: false
+        });
+        scanVideo.srcObject = cameraStream;
+        await scanVideo.play();
+        startScanLoop();
+      } catch (err) {
+        console.error('Camera access error:', err);
+      }
+    }
+
+    function closeCameraScanner() {
+      cameraModal.classList.remove('active');
+      stopScanLoop();
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+      }
+      scanVideo.srcObject = null;
+    }
+
+    function startScanLoop() {
+      if (!barcodeDetector) return;
+      scanInterval = setInterval(async () => {
+        if (!scanVideo || scanVideo.readyState < 2) return;
+        try {
+          const barcodes = await barcodeDetector.detect(scanVideo);
+          if (barcodes && barcodes.length > 0) {
+            const qrText = barcodes[0].rawValue;
+            if (qrText && qrText.startsWith('http')) {
+              stopScanLoop();
+              closeCameraScanner();
+              window.location.href = qrText;
+            }
+          }
+        } catch (e) {}
+      }, 300);
+    }
+
+    function stopScanLoop() {
+      if (scanInterval) {
+        clearInterval(scanInterval);
+        scanInterval = null;
+      }
+    }
+
+    if (cardScanCamera) cardScanCamera.addEventListener('click', openCameraScanner);
+    if (btnMenuScan) btnMenuScan.addEventListener('click', openCameraScanner);
+    if (cameraCloseX) cameraCloseX.addEventListener('click', closeCameraScanner);
+
+    cameraModal.addEventListener('click', (e) => {
+      if (e.target === cameraModal) closeCameraScanner();
+    });
+
+    // --------------------------------------------------------------------------
+    // Server Info & QR
+    // --------------------------------------------------------------------------
+    let serverInfo = null;
+    let activeQrTab = 'tunnel';
+
+    const tabTunnel = document.getElementById('tabTunnel');
+    const tabLocal = document.getElementById('tabLocal');
+    const qrImage = document.getElementById('qrImage');
+    const remoteUrlDisplay = document.getElementById('remoteUrlDisplay');
+    const copyUrlBtn = document.getElementById('copyUrlBtn');
+
+    async function loadServerInfo() {
+      try {
+        const res = await fetch('/api/info');
+        serverInfo = await res.json();
+        updateQrDisplay();
+      } catch (err) {}
+    }
+
+    function updateQrDisplay() {
+      if (!serverInfo) return;
+      if (activeQrTab === 'tunnel' && serverInfo.hasTunnel) {
+        qrImage.src = serverInfo.tunnelQrDataUrl;
+        remoteUrlDisplay.textContent = serverInfo.tunnelRemoteUrl;
+      } else {
+        qrImage.src = serverInfo.localQrDataUrl;
+        remoteUrlDisplay.textContent = serverInfo.localRemoteUrl;
+      }
+    }
+
+    tabTunnel.addEventListener('click', () => {
+      activeQrTab = 'tunnel';
+      tabTunnel.classList.add('active');
+      tabLocal.classList.remove('active');
+      updateQrDisplay();
+    });
+
+    tabLocal.addEventListener('click', () => {
+      activeQrTab = 'local';
+      tabLocal.classList.add('active');
+      tabTunnel.classList.remove('active');
+      updateQrDisplay();
+    });
+
+    copyUrlBtn.addEventListener('click', () => {
+      const url = remoteUrlDisplay.textContent;
+      if (!url) return;
+      navigator.clipboard.writeText(url).then(() => {
+        copyUrlBtn.style.color = 'var(--color-semantic-success)';
+        setTimeout(() => { copyUrlBtn.style.color = ''; }, 1500);
+      });
+    });
+
+    // --------------------------------------------------------------------------
+    // WebSocket 接続
+    // --------------------------------------------------------------------------
+    let socket = null;
+    const menuWsDot = document.getElementById('menuWsDot');
+    const remoteWsDot = document.getElementById('remoteWsDot');
+
+    function connectWebSocket() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      socket = new WebSocket(`${protocol}//${window.location.host}`);
+
+      socket.addEventListener('open', () => {
+        updateWsIndicator(true);
+        const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        socket.send(JSON.stringify({
+          type: 'register',
+          clientType: isLocalHost ? 'pc' : 'mobile'
+        }));
+        requestWakeLock();
+      });
+
+      socket.addEventListener('close', () => {
+        updateWsIndicator(false);
+        setTimeout(connectWebSocket, 2000);
+      });
+
+      socket.addEventListener('error', () => {});
+    }
+
+    function updateWsIndicator(isConnected) {
+      const dotClass = isConnected ? 'status-dot active' : 'status-dot warning';
+      if (menuWsDot) menuWsDot.className = dotClass;
+      if (remoteWsDot) remoteWsDot.className = dotClass;
+    }
+
+    // --------------------------------------------------------------------------
+    // プレゼン操作 (タイマー & キー送信)
+    // --------------------------------------------------------------------------
+    let currentSlide = 1;
+    const slideNum = document.getElementById('slideNum');
+    const mainTimerText = document.getElementById('mainTimerText');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const flashOverlay = document.getElementById('flashOverlay');
+    const btnNext = document.getElementById('btnNext');
+    const btnPrev = document.getElementById('btnPrev');
+
+    let targetTotalSeconds = 10 * 60;
+    let remainingSeconds = 10 * 60;
+    let elapsedSeconds = 0;
+    let timerInterval = null;
+    let isTimerRunning = false;
+
+    function formatTimeDisplay(sec, isCountdown) {
+      if (isCountdown) {
+        if (sec >= 0) {
+          const m = Math.floor(sec / 60);
+          const s = sec % 60;
+          return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        } else {
+          const abs = Math.abs(sec);
+          const m = Math.floor(abs / 60);
+          const s = abs % 60;
+          return `-${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+      } else {
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+      }
+    }
+
+    function renderTimerUI() {
+      const isCountdown = targetTotalSeconds > 0;
+      const displaySec = isCountdown ? remainingSeconds : elapsedSeconds;
+      mainTimerText.textContent = formatTimeDisplay(displaySec, isCountdown);
+
+      if (isTimerRunning) {
+        pauseBtn.classList.remove('paused');
+      } else {
+        pauseBtn.classList.add('paused');
+      }
+    }
+
+    function startTimer() {
+      if (isTimerRunning) return;
+      isTimerRunning = true;
+      timerInterval = setInterval(() => {
+        if (targetTotalSeconds > 0) remainingSeconds--;
+        else elapsedSeconds++;
+        renderTimerUI();
+      }, 1000);
+      renderTimerUI();
+    }
+
+    function pauseTimer() {
+      if (!isTimerRunning) return;
+      clearInterval(timerInterval);
+      isTimerRunning = false;
+      renderTimerUI();
+    }
+
+    function resetTimer() {
+      pauseTimer();
+      remainingSeconds = targetTotalSeconds;
+      elapsedSeconds = 0;
+      renderTimerUI();
+    }
+
+    pauseBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+    pauseBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (isTimerRunning) pauseTimer();
+      else startTimer();
+    });
+
+    let lastCommandTime = 0;
+    const COMMAND_DEBOUNCE_MS = 200;
+
+    function sendCommand(action) {
+      const now = Date.now();
+      if (now - lastCommandTime < COMMAND_DEBOUNCE_MS) return;
+      lastCommandTime = now;
+
+      flashOverlay.className = 'flash-overlay active';
+      setTimeout(() => { flashOverlay.className = 'flash-overlay'; }, 70);
+
+      if (action === 'next' || action === 'prev') {
+        if (!isTimerRunning) startTimer();
+      }
+
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: 'command', action }));
+        if (action === 'next') {
+          currentSlide++;
+          slideNum.textContent = currentSlide;
+        } else if (action === 'prev') {
+          currentSlide = Math.max(1, currentSlide - 1);
+          slideNum.textContent = currentSlide;
+        }
+      }
+    }
+
+    function bindAction(el, action) {
+      if (!el) return;
+      el.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('#pauseBtn')) return;
+        el.classList.add('pressed');
+        sendCommand(action);
+      });
+      el.addEventListener('pointerup', () => el.classList.remove('pressed'));
+      el.addEventListener('pointercancel', () => el.classList.remove('pressed'));
+      el.addEventListener('click', (e) => {
+        if (e.target.closest('#pauseBtn')) return;
+        sendCommand(action);
+      });
+    }
+
+    bindAction(btnNext, 'next');
+    bindAction(btnPrev, 'prev');
+
+    // Swipe Gesture
+    let touchStartX = 0;
+    let touchStartY = 0;
+    const remoteArea = document.getElementById('remoteArea');
+
+    remoteArea.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+      touchStartY = e.changedTouches[0].screenY;
+    }, { passive: true });
+
+    remoteArea.addEventListener('touchend', (e) => {
+      const touchEndX = e.changedTouches[0].screenX;
+      const touchEndY = e.changedTouches[0].screenY;
+      const diffX = touchEndX - touchStartX;
+      const diffY = touchEndY - touchStartY;
+
+      if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 60) {
+        if (diffX < 0) {
+          btnNext.classList.add('pressed');
+          setTimeout(() => btnNext.classList.remove('pressed'), 150);
+          sendCommand('next');
+        } else {
+          btnPrev.classList.add('pressed');
+          setTimeout(() => btnPrev.classList.remove('pressed'), 150);
+          sendCommand('prev');
+        }
+      }
+    }, { passive: true });
+
+    // --------------------------------------------------------------------------
+    // Settings Modal
+    // --------------------------------------------------------------------------
+    const settingsBtn = document.getElementById('settingsBtn');
+    const settingsBackdrop = document.getElementById('settingsBackdrop');
+    const settingsCloseX = document.getElementById('settingsCloseX');
+    const settingsDoneBtn = document.getElementById('settingsDoneBtn');
+    const resetTimerBtn = document.getElementById('resetTimerBtn');
+    const inputMinutes = document.getElementById('inputMinutes');
+    const inputSeconds = document.getElementById('inputSeconds');
+    const applyTimeBtn = document.getElementById('applyTimeBtn');
+    const toggleAwake = document.getElementById('toggleAwake');
+    const presetButtons = document.querySelectorAll('.preset-btn');
+
+    function openSettings() {
+      if (targetTotalSeconds > 0) {
+        inputMinutes.value = Math.floor(targetTotalSeconds / 60);
+        inputSeconds.value = targetTotalSeconds % 60;
+      } else {
+        inputMinutes.value = 0;
+        inputSeconds.value = 0;
+      }
+      settingsBackdrop.classList.add('active');
+    }
+
+    function closeSettings() { settingsBackdrop.classList.remove('active'); }
+
+    settingsBtn.addEventListener('click', openSettings);
+    if (settingsCloseX) settingsCloseX.addEventListener('click', closeSettings);
+    if (settingsDoneBtn) settingsDoneBtn.addEventListener('click', closeSettings);
+    settingsBackdrop.addEventListener('click', (e) => {
+      if (e.target === settingsBackdrop) closeSettings();
+    });
+
+    resetTimerBtn.addEventListener('click', () => {
+      resetTimer();
+      closeSettings();
+    });
+
+    applyTimeBtn.addEventListener('click', () => {
+      const mins = parseInt(inputMinutes.value, 10) || 0;
+      const secs = parseInt(inputSeconds.value, 10) || 0;
+      const totalSec = mins * 60 + secs;
+      if (totalSec >= 0) {
+        presetButtons.forEach(b => b.classList.remove('selected'));
+        targetTotalSeconds = totalSec;
+        resetTimer();
+        closeSettings();
+      }
+    });
+
+    presetButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        presetButtons.forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        const mins = parseInt(btn.getAttribute('data-mins'), 10);
+        const secs = parseInt(btn.getAttribute('data-secs'), 10);
+        inputMinutes.value = mins;
+        inputSeconds.value = secs;
+        targetTotalSeconds = mins * 60 + secs;
+        resetTimer();
+      });
+    });
+
+    // --------------------------------------------------------------------------
+    // Wake Lock
+    // --------------------------------------------------------------------------
+    let wakeLock = null;
+    let isAwakeEnabled = true;
+    const fallbackVideo = document.getElementById('fallbackVideo');
+
+    async function requestWakeLock() {
+      if (!isAwakeEnabled) return;
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLock = await navigator.wakeLock.request('screen');
+        } else if (fallbackVideo) {
+          try { await fallbackVideo.play(); } catch (e) {}
+        }
+      } catch (err) {}
+    }
+
+    function releaseWakeLock() {
+      if (wakeLock) {
+        wakeLock.release().catch(() => {});
+        wakeLock = null;
+      }
+      if (fallbackVideo) fallbackVideo.pause();
+    }
+
+    toggleAwake.addEventListener('change', () => {
+      isAwakeEnabled = toggleAwake.checked;
+      if (isAwakeEnabled) requestWakeLock();
+      else releaseWakeLock();
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && isAwakeEnabled) requestWakeLock();
+    });
+
+    window.addEventListener('pointerdown', () => {
+      if (isAwakeEnabled && (!wakeLock || wakeLock.released)) requestWakeLock();
+    }, { once: false });
+
+    // Initial
+    renderTimerUI();
+    loadServerInfo();
+    const infoInterval = setInterval(async () => {
+      await loadServerInfo();
+      if (serverInfo && serverInfo.hasTunnel) clearInterval(infoInterval);
+    }, 2000);
+    connectWebSocket();
+    requestWakeLock();
+  </script>
+</body>
+</html>

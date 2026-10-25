@@ -1,0 +1,18 @@
+{
+  "name": "webslideswitch",
+  "version": "1.0.0",
+  "description": "スマホのWi-Fi接続でGoogleスライドを進む・戻る操作できるプレゼンリモコン",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "localtunnel": "^2.0.2",
+    "qrcode": "^1.5.4",
+    "untun": "^0.2.2",
+    "ws": "^8.18.3"
+  }
+}
