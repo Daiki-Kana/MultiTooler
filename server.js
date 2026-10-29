@@ -1,6 +1,6 @@
 // ==============================================================================
-// WebSlideSwitch - プレゼンコントローラー サーバー (Native API & Cloudflare Tunnel版)
-// user32.dll keybd_event による物理キーストローク送信でGoogleスライドを確実に操作
+// WebSlideSwitch - プレゼンコントローラー サーバー (Native API & Cloudflare Tunnel版 v1.1)
+// Win32低レベルAPI・Unicodeクリップボード注入 & 物理キーストローク送信
 // ==============================================================================
 
 const http = require('http');
@@ -16,6 +16,13 @@ const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
 const PORT = process.env.PORT || 3000;
+
+// 4桁のセキュア接続PINコード管理
+function generatePin() {
+  return Math.floor(1000 + Math.random() * 9000).toString();
+}
+let currentPin = generatePin();
+console.log(`[Security] 4桁のペアリングPINコードが発行されました: 👉 ${currentPin}`);
 
 // ------------------------------------------------------------------------------
 // 1. Windows Native キーストローク送信管理 (user32.dll keybd_event)
@@ -48,6 +55,8 @@ function initNativeKeyEngine() {
       if (output.includes('NATIVE_KEY_ENGINE_READY')) {
         isKeyEngineReady = true;
         console.log('[NativeKey] Windows Nativeキーストロークエンジン & PC画面スリープ防止が準備完了しました');
+      } else if (output.startsWith('OK_TEXT')) {
+        console.log(`[NativeKey] 貼り付け注入完了: ${output}`);
       }
     });
 
@@ -65,6 +74,15 @@ function initNativeKeyEngine() {
   }
 }
 
+// プロセス終了時にPowerShell子プロセスを確実に終了
+process.on('exit', () => {
+  if (psProcess) {
+    try { psProcess.stdin.write("QUIT\n"); psProcess.kill(); } catch (e) {}
+  }
+});
+process.on('SIGINT', () => process.exit(0));
+process.on('SIGTERM', () => process.exit(0));
+
 // キー送信実行関数
 function sendNativeKey(action) {
   const cmd = action.toUpperCase();
@@ -81,6 +99,20 @@ function sendNativeKey(action) {
     return true;
   } catch (err) {
     console.error(`[NativeKey] 送信失敗:`, err);
+    return false;
+  }
+}
+
+// 低レイテンシ マウス・コマンド送信関数
+function sendNativeMouse(cmd) {
+  if (!psProcess || !psProcess.stdin.writable) {
+    initNativeKeyEngine();
+    return false;
+  }
+  try {
+    psProcess.stdin.write(`${cmd}\n`);
+    return true;
+  } catch (err) {
     return false;
   }
 }
@@ -204,11 +236,28 @@ app.get('/api/info', async (req, res) => {
       tunnelQrDataUrl,
       hasTunnel: !!currentTunnelUrl,
       connectedClients: wss.clients.size,
-      sleepPrevention: isKeyEngineReady
+      sleepPrevention: isKeyEngineReady,
+      pin: currentPin
     });
   } catch (err) {
     res.status(500).json({ error: '接続情報の生成に失敗しました' });
   }
+});
+
+// PINコード再生成API
+app.post('/api/regenerate-pin', (req, res) => {
+  currentPin = generatePin();
+  console.log(`[Security] PINコードが再生成されました: 👉 ${currentPin}`);
+  // 接続中のモバイル端末を未認証に戻して再入力を促す
+  for (const [ws, info] of clients.entries()) {
+    if (info.type === 'mobile') {
+      info.authenticated = false;
+      if (ws.readyState === ws.OPEN) {
+        ws.send(JSON.stringify({ type: 'auth_required' }));
+      }
+    }
+  }
+  res.json({ success: true, pin: currentPin });
 });
 
 // ------------------------------------------------------------------------------
@@ -244,7 +293,8 @@ wss.on('connection', (ws, req) => {
   const clientInfo = {
     type: 'unknown',
     ip: req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.socket.remoteAddress,
-    connectedAt: Date.now()
+    connectedAt: Date.now(),
+    authenticated: false
   };
   clients.set(ws, clientInfo);
 
@@ -256,15 +306,107 @@ wss.on('connection', (ws, req) => {
 
       if (data.type === 'register') {
         clientInfo.type = data.clientType || 'unknown';
+        // PC画面側はホスト表示のため自動認証
+        if (clientInfo.type === 'pc') {
+          clientInfo.authenticated = true;
+        } else if (data.pin && String(data.pin).trim() === currentPin) {
+          // URLパラメータ等でPINが同梱されている場合は自動認証
+          clientInfo.authenticated = true;
+          ws.send(JSON.stringify({ type: 'auth_success' }));
+        }
         clients.set(ws, clientInfo);
-        console.log(`[WebSocket] クライアント登録: ${clientInfo.type} (${clientInfo.ip})`);
+        console.log(`[WebSocket] クライアント登録: ${clientInfo.type} (${clientInfo.ip}, auth=${clientInfo.authenticated})`);
         broadcastStatus();
+        return;
+      }
+
+      // PINコード認証要求
+      if (data.type === 'auth') {
+        const inputPin = String(data.pin || '').trim();
+        if (inputPin === currentPin) {
+          clientInfo.authenticated = true;
+          console.log(`[Security] PIN認証成功: ${clientInfo.ip}`);
+          ws.send(JSON.stringify({ type: 'auth_success' }));
+        } else {
+          clientInfo.authenticated = false;
+          console.warn(`[Security] PIN認証失敗 (入力: ${inputPin}): ${clientInfo.ip}`);
+          ws.send(JSON.stringify({ type: 'auth_fail' }));
+        }
+        return;
+      }
+
+      // 未認証のモバイルクライアントからの操作はすべて破棄
+      if (!clientInfo.authenticated && clientInfo.type !== 'pc') {
+        ws.send(JSON.stringify({ type: 'auth_required' }));
+        return;
+      }
+
+      if (data.type === 'mouse_move') {
+        const dx = Math.round(data.dx);
+        const dy = Math.round(data.dy);
+        if (dx !== 0 || dy !== 0) {
+          sendNativeMouse(`MOUSE_MOVE ${dx} ${dy}`);
+        }
+        return;
+      }
+
+      if (data.type === 'mouse_click') {
+        if (data.button === 'right') sendNativeMouse('MOUSE_CLICK_RIGHT');
+        else sendNativeMouse('MOUSE_CLICK_LEFT');
+        return;
+      }
+
+      if (data.type === 'mouse_drag') {
+        if (data.state === 'start') sendNativeMouse('MOUSE_DRAG_START');
+        else sendNativeMouse('MOUSE_DRAG_END');
+        return;
+      }
+
+      if (data.type === 'mouse_scroll') {
+        sendNativeMouse(`MOUSE_SCROLL ${Math.round(data.delta)}`);
+        return;
+      }
+
+      if (data.type === 'clipboard') {
+        if (data.action === 'copy') sendNativeMouse('CMD_COPY');
+        else if (data.action === 'paste') sendNativeMouse('CMD_PASTE');
+        return;
+      }
+
+      if (data.type === 'keyboard_text') {
+        const text = String(data.text || '');
+        if (text) {
+          const b64 = Buffer.from(text, 'utf-8').toString('base64');
+          console.log(`[Keyboard] テキスト入力送信: "${text}"`);
+          sendNativeMouse(`KEY_TEXT ${b64}`);
+        }
+        return;
+      }
+
+      if (data.type === 'keyboard_key') {
+        const key = String(data.key || '').toUpperCase();
+        if (key) {
+          console.log(`[Keyboard] 特殊キー送信: ${key}`);
+          sendNativeMouse(`KEY_SPECIAL ${key}`);
+        }
         return;
       }
 
       if (data.type === 'command') {
         const action = data.action;
-        const success = sendNativeKey(action);
+        let success = false;
+
+        if (action === 'copy') {
+          success = sendNativeMouse('CMD_COPY');
+        } else if (action === 'paste') {
+          success = sendNativeMouse('CMD_PASTE');
+        } else if (action === 'drag_start') {
+          success = sendNativeMouse('MOUSE_DRAG_START');
+        } else if (action === 'drag_end') {
+          success = sendNativeMouse('MOUSE_DRAG_END');
+        } else {
+          success = sendNativeKey(action);
+        }
 
         let actionLabel = '';
         if (action === 'next') actionLabel = 'Next Slide';

@@ -5,16 +5,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Slide Controller</title>
   <link rel="stylesheet" href="style.css">
+  <script src="jsqr.min.js"></script>
   <style>
     html, body {
       height: 100%;
+      height: 100dvh;
       background-color: var(--color-canvas);
       color: var(--color-ink);
       font-family: var(--font-family);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      letter-spacing: -0.012em;
       user-select: none;
       -webkit-user-select: none;
       -webkit-tap-highlight-color: transparent;
       overflow: hidden;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* スリープ防止ビデオを画面外に完全に除外し、レイアウト押し下げを防止 */
+    #fallbackVideo {
+      position: fixed;
+      top: -9999px;
+      left: -9999px;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+      z-index: -100;
     }
 
     .view-container {
@@ -23,6 +42,8 @@
       height: 100vh;
       height: 100dvh;
       flex-direction: column;
+      box-sizing: border-box;
+      overflow: hidden;
     }
 
     .view-container.active {
@@ -83,33 +104,34 @@
     }
 
     /* --------------------------------------------------------------------------
-       Menu View (Icon & Symbol Centric Grid)
+       Menu View (2x2 Grid, Full Height & Width, Borderless)
        -------------------------------------------------------------------------- */
     .menu-body {
       flex: 1;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      padding: 24px;
-      gap: 14px;
-      max-width: 360px;
-      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      padding: 12px 16px max(20px, env(safe-area-inset-bottom, 20px)) 16px;
+      gap: 12px;
       width: 100%;
+      height: 100%;
+      min-height: 0;
+      box-sizing: border-box;
     }
 
     .menu-card {
       width: 100%;
-      height: 84px;
+      height: 100%;
       background: var(--color-surface-1);
       border: none;
       color: var(--color-ink);
       cursor: pointer;
-      border-radius: 12px;
+      border-radius: 16px;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 14px;
+      gap: 12px;
       transition: background-color 0.15s ease, transform 0.08s ease;
       font-family: var(--font-family);
       font-size: 15px;
@@ -148,12 +170,14 @@
       display: flex;
       flex-direction: column;
       gap: 10px;
-      padding: 10px;
+      padding: 10px 10px max(16px, env(safe-area-inset-bottom, 16px)) 10px;
       min-height: 0;
+      box-sizing: border-box;
     }
 
+    /* 上段: PREV (前のスライドへ戻る) */
     .btn-remote-prev {
-      flex: 3;
+      flex: 4;
       background-color: var(--color-surface-1);
       border: none;
       color: var(--color-ink);
@@ -162,8 +186,8 @@
       justify-content: center;
       cursor: pointer;
       border-radius: 14px;
-      touch-action: none;
-      transition: background-color 0.1s ease;
+      touch-action: manipulation;
+      transition: background-color 0.1s ease, transform 0.08s ease;
     }
 
     .btn-remote-prev:hover {
@@ -172,80 +196,108 @@
 
     .btn-remote-prev:active, .btn-remote-prev.pressed {
       background-color: #d8d8d8;
+      transform: scale(0.98);
     }
 
-    .btn-remote-next {
-      flex: 7;
-      background-color: var(--color-primary);
+    /* 中段: 細めのタイマー停止・再開ボタン (誤タップ防止でスリムに配置) */
+    .btn-remote-timer {
+      flex: 2;
+      min-height: 56px;
+      max-height: 68px;
+      background-color: var(--color-surface-1);
       border: none;
-      color: var(--color-on-primary);
+      color: var(--color-ink);
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
       cursor: pointer;
       border-radius: 14px;
-      touch-action: none;
-      position: relative;
-      transition: background-color 0.1s ease;
+      touch-action: manipulation;
+      transition: background-color 0.15s ease, transform 0.08s ease;
+      user-select: none;
+      -webkit-user-select: none;
     }
 
-    .btn-remote-next:hover {
-      background-color: var(--color-blue-hover);
+    .btn-remote-timer:hover {
+      background-color: var(--color-surface-2);
     }
 
-    .btn-remote-next:active, .btn-remote-next.pressed {
-      background-color: var(--color-blue-80);
+    .btn-remote-timer:active, .btn-remote-timer.pressed {
+      transform: scale(0.97);
     }
 
-    .timer-row {
-      display: flex;
+    /* タイマー進行中 */
+    .btn-remote-timer.timer-running {
+      background-color: var(--color-surface-2);
+      color: var(--color-ink);
+    }
+
+    /* タイマー停止中 */
+    .btn-remote-timer.timer-paused {
+      background-color: var(--color-surface-1);
+      color: var(--color-ink-muted);
+    }
+
+    .timer-display-wrap {
+      display: inline-flex;
       align-items: center;
-      justify-content: center;
-      gap: 16px;
-      margin-top: 10px;
+      gap: 12px;
+      pointer-events: none;
     }
 
     .timer-text {
       font-family: var(--font-mono);
-      font-size: 60px;
+      font-size: 26px;
       font-weight: 600;
-      letter-spacing: -1px;
+      letter-spacing: -0.5px;
       line-height: 1;
-      color: #ffffff;
     }
 
-    .btn-pause {
-      width: 44px;
-      height: 44px;
+    .timer-state-icon {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      background: rgba(255, 255, 255, 0.22);
-      border: none;
-      outline: none;
-      color: #ffffff;
-      padding: 0;
+      width: 28px;
+      height: 28px;
       border-radius: 50%;
-      cursor: pointer;
-      flex-shrink: 0;
-      transition: background-color 0.1s ease, transform 0.08s ease;
-    }
-
-    .btn-pause:active {
-      background: rgba(255, 255, 255, 0.4);
-      transform: scale(0.92);
-    }
-
-    .btn-pause.paused {
-      background: #ffffff;
+      background: var(--color-surface-1);
       color: var(--color-ink);
+      transition: all 0.12s ease;
     }
 
-    .btn-pause .icon-play { display: block; margin-left: 2px; }
-    .btn-pause .icon-pause { display: none; }
-    .btn-pause:not(.paused) .icon-play { display: none; }
-    .btn-pause:not(.paused) .icon-pause { display: block; }
+    .timer-running .timer-state-icon {
+      background: var(--color-ink);
+      color: #ffffff;
+    }
+
+    .timer-paused .icon-play { display: block; margin-left: 2px; }
+    .timer-paused .icon-pause { display: none; }
+    .timer-running .icon-play { display: none; }
+    .timer-running .icon-pause { display: block; }
+
+    /* 下段: 今まで通りのNEXTボタン (スライド送りのメイン領域) */
+    .btn-remote-next {
+      flex: 6;
+      background-color: var(--color-ink);
+      border: none;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: 16px;
+      touch-action: manipulation;
+      transition: background-color 0.12s ease, transform 0.08s ease;
+    }
+
+    .btn-remote-next:hover {
+      background-color: #2a2a2a;
+    }
+
+    .btn-remote-next:active, .btn-remote-next.pressed {
+      background-color: #000000;
+      transform: scale(0.98);
+    }
 
     /* --------------------------------------------------------------------------
        Modal (Icon Focused, Soft Elevation, No Box Borders)
@@ -347,6 +399,146 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+
+    .pin-box {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--color-surface-1);
+      border-radius: 8px;
+      padding: 6px 6px 6px 14px;
+      margin-top: 10px;
+      box-sizing: border-box;
+    }
+
+    .pin-display {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .pin-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      color: var(--color-ink-muted);
+      text-transform: uppercase;
+    }
+
+    .pin-value {
+      font-family: var(--font-mono);
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      color: var(--color-ink);
+    }
+
+    /* --------------------------------------------------------------------------
+       PIN Authentication Modal (Phone Lock Screen, Borderless, Icon First)
+       -------------------------------------------------------------------------- */
+    .pin-auth-panel {
+      max-width: 310px;
+      padding: 32px 24px 28px 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: var(--color-canvas);
+      border-radius: 24px;
+      border: none;
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.16);
+    }
+
+    .pin-auth-head {
+      margin-bottom: 24px;
+      color: var(--color-ink);
+    }
+
+    .pin-indicator-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 32px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .pin-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--color-surface-2);
+      transition: background-color 0.15s ease, transform 0.1s ease;
+    }
+
+    .pin-dot.filled {
+      background: var(--color-ink);
+      transform: scale(1.1);
+    }
+
+    .pin-indicator-row.shake {
+      animation: pinShake 0.4s ease-in-out;
+    }
+
+    @keyframes pinShake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-8px); }
+      40%, 80% { transform: translateX(8px); }
+    }
+
+    .pin-keypad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px 18px;
+      width: 100%;
+      max-width: 250px;
+      justify-items: center;
+    }
+
+    .pin-key {
+      width: 62px;
+      height: 62px;
+      border-radius: 50%;
+      background: var(--color-surface-1);
+      border: none;
+      color: var(--color-ink);
+      font-family: var(--font-family);
+      font-size: 24px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+      transition: background-color 0.1s ease, transform 0.08s ease;
+    }
+
+    .pin-key:hover {
+      background: var(--color-surface-2);
+    }
+
+    .pin-key:active {
+      transform: scale(0.92);
+      background: #d4d4d4;
+    }
+
+    .pin-key-dummy {
+      width: 62px;
+      height: 62px;
+    }
+
+    .pin-key-back {
+      background: transparent;
+    }
+
+    .pin-key-back:hover {
+      background: var(--color-surface-1);
+    }
+
+    .pin-key-back:active {
+      background: var(--color-surface-2);
     }
 
     /* Camera Scanner Viewport */
@@ -495,12 +687,256 @@
       background: rgba(15, 98, 254, 0.08);
     }
 
-    #fallbackVideo {
-      position: fixed;
-      width: 1px;
-      height: 1px;
-      opacity: 0.01;
-      pointer-events: none;
+    /* --------------------------------------------------------------------------
+       Joystick View (Portrait, Borderless, Joycon-Style)
+       -------------------------------------------------------------------------- */
+    #viewTrackpad {
+      display: none;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      flex-direction: column;
+      background: var(--color-canvas);
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #viewTrackpad.active {
+      display: flex;
+    }
+
+    .stick-main-container {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 16px max(16px, env(safe-area-inset-bottom, 16px)) 16px;
+      box-sizing: border-box;
+      touch-action: none;
+      overflow: hidden;
+    }
+
+    /* 上部アクション行 */
+    .stick-action-row {
+      width: 100%;
+      max-width: 360px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .stick-action-btn {
+      flex: 1;
+      height: 52px;
+      background: var(--color-surface-1);
+      border: none;
+      color: var(--color-ink);
+      border-radius: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background-color 0.1s ease, transform 0.08s ease;
+      touch-action: manipulation;
+    }
+
+    .stick-action-btn:hover {
+      background: var(--color-surface-2);
+    }
+
+    .stick-action-btn:active, .stick-action-btn.active {
+      background: var(--color-ink);
+      color: #ffffff;
+      transform: scale(0.94);
+    }
+
+    /* キーボード入力トレイ (1行ミニマル・ボーダーレス・アイコンファースト) */
+    .keyboard-tray {
+      display: none;
+      width: 100%;
+      max-width: 400px;
+      margin-top: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .keyboard-tray.active {
+      display: flex;
+    }
+
+    .keyboard-input-wrap {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .phone-input {
+      flex: 1;
+      height: 44px;
+      background: var(--color-surface-1);
+      border: none;
+      outline: none;
+      border-radius: 12px;
+      padding: 0 14px;
+      font-family: var(--font-family);
+      font-size: 15px;
+      color: var(--color-ink);
+      box-sizing: border-box;
+      transition: background-color 0.12s ease;
+    }
+
+    .phone-input:focus {
+      background: var(--color-surface-2);
+    }
+
+    .key-sub-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: var(--color-surface-1);
+      color: var(--color-ink);
+      flex-shrink: 0;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background-color 0.12s ease, transform 0.08s ease;
+    }
+
+    .key-sub-btn:hover {
+      background: var(--color-surface-2);
+    }
+
+    .key-sub-btn:active {
+      transform: scale(0.92);
+      background: #d4d4d4;
+    }
+
+    .key-send-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: var(--color-ink);
+      color: #ffffff;
+      flex-shrink: 0;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background-color 0.12s ease, transform 0.08s ease;
+    }
+
+    .key-send-btn:hover {
+      background: #2a2a2a;
+    }
+
+    .key-send-btn:active {
+      transform: scale(0.92);
+      background: #000000;
+    }
+
+    /* トラックパッド領域 (広大・高精度・ボーダーレス) */
+    .trackpad-wrapper {
+      flex: 1;
+      width: 100%;
+      max-width: 360px;
+      margin: 8px 0;
+      min-height: 120px;
+      display: flex;
+      align-items: stretch;
+      touch-action: none;
+    }
+
+    .trackpad-surface {
+      flex: 1;
+      width: 100%;
+      background: var(--color-surface-1);
+      border: none;
+      border-radius: 20px;
+      position: relative;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.15s ease;
+      cursor: default;
+    }
+
+    .trackpad-surface:active, .trackpad-surface.touching {
+      background: var(--color-surface-2);
+    }
+
+    /* 下部コントロール群 (ドラッグ長押しバー ＋ コピー/ペースト) */
+    .stick-bottom-controls {
+      width: 100%;
+      max-width: 360px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .stick-drag-row {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+    }
+
+    /* 長押しバー (丸アイコン全廃・ボーダーレス・ミニマルバー) */
+    .stick-drag-btn {
+      width: 100%;
+      height: 44px;
+      background: var(--color-surface-1);
+      border: none;
+      color: var(--color-ink);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      touch-action: none;
+      position: relative;
+      transition: background-color 0.12s ease, transform 0.08s ease;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* バー中央のミニマルなインジケーター線 */
+    .stick-drag-btn::after {
+      content: '';
+      display: block;
+      width: 36px;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--color-ink);
+      opacity: 0.25;
+      transition: all 0.12s ease;
+    }
+
+    .stick-drag-btn:hover {
+      background: var(--color-surface-2);
+    }
+
+    /* 長押し押下中の状態 (ネオンレッド反転・高コントラスト) */
+    .stick-drag-btn.holding {
+      background: #ff003b;
+      transform: scale(0.98);
+    }
+
+    .stick-drag-btn.holding::after {
+      background: #ffffff;
+      opacity: 0.9;
+      width: 48px;
     }
   </style>
 </head>
@@ -551,6 +987,15 @@
           <polygon points="10 8 15 10 10 12" fill="currentColor"></polygon>
         </svg>
         <span>Slides</span>
+      </button>
+
+      <!-- Trackpad & Mouse Card -->
+      <button type="button" class="menu-card primary" id="cardTrackpad" aria-label="Trackpad">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="5" y="2" width="14" height="20" rx="7"></rect>
+          <line x1="12" y1="6" x2="12" y2="10"></line>
+        </svg>
+        <span>Trackpad</span>
       </button>
 
       <!-- Scan Camera Card -->
@@ -604,7 +1049,13 @@
       </div>
 
       <div class="bar-group">
-        <span class="slide-badge" id="slideNum">1</span>
+        <!-- Direct Timer Reset Icon Button -->
+        <button type="button" id="btnResetTimerDirect" class="btn-icon" aria-label="Reset Timer">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="1 4 1 10 7 10"></polyline>
+            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+          </svg>
+        </button>
 
         <!-- Settings Gear Icon -->
         <button type="button" id="settingsBtn" class="btn-icon" aria-label="Settings">
@@ -617,28 +1068,116 @@
     </header>
 
     <main class="button-container" id="remoteArea">
-      <!-- PREV: Icon Centered -->
+      <!-- 上: PREV (前のスライドへ戻る) -->
       <div class="btn-remote-prev" id="btnPrev" role="button" tabindex="0" aria-label="Previous">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="15 18 9 12 15 6"></polyline>
         </svg>
       </div>
 
-      <!-- NEXT: Timer + Play/Pause + Icon -->
-      <div class="btn-remote-next" id="btnNext" role="button" tabindex="0" aria-label="Next">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="9 18 15 12 9 6"></polyline>
-        </svg>
-
-        <div class="timer-row">
-          <span class="timer-text" id="mainTimerText">10:00</span>
-          <button type="button" class="btn-pause paused" id="pauseBtn" aria-label="Play or Pause">
-            <svg class="icon-play" width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
+      <!-- 中: TIMER (細めのタイマー停止・再生ボタン。テキストタップで停止/再開) -->
+      <div class="btn-remote-timer timer-paused" id="timerToggleBtn" role="button" tabindex="0" aria-label="Timer Toggle">
+        <div class="timer-display-wrap">
+          <span class="timer-text" id="mainTimerText">00:00</span>
+          <span class="timer-state-icon" id="timerStateIcon">
+            <svg class="icon-play" width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
               <polygon points="3,1 15,8 3,15"/>
             </svg>
-            <svg class="icon-pause" width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
+            <svg class="icon-pause" width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
               <rect x="3" y="2" width="3.5" height="12"/>
               <rect x="9.5" y="2" width="3.5" height="12"/>
+            </svg>
+          </span>
+        </div>
+      </div>
+
+      <!-- 下: NEXT (今まで通りのNEXTボタン、スライド送りの主役) -->
+      <div class="btn-remote-next" id="btnNext" role="button" tabindex="0" aria-label="Next">
+        <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </div>
+    </main>
+  </div>
+
+  <!-- 3. Joystick Controller View (Portrait, Borderless, Joycon-Style) -->
+  <div id="viewTrackpad" class="view-container">
+    <header class="bar">
+      <div class="bar-group">
+        <button type="button" id="btnTrackpadBack" class="btn-icon" aria-label="Menu">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+        </button>
+        <span class="status-dot" id="trackpadWsDot"></span>
+      </div>
+      <div class="bar-group">
+        <!-- Keyboard Toggle Icon -->
+        <button type="button" id="btnToggleKeyboard" class="btn-icon" aria-label="Keyboard">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+            <path d="M6 8h.001M10 8h.001M14 8h.001M18 8h.001M6 12h.001M10 12h.001M14 12h.001M18 12h.001M7 16h10"></path>
+          </svg>
+        </button>
+
+        <button type="button" id="btnStickSettings" class="btn-icon" aria-label="Settings">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="stick-main-container">
+      <!-- Keyboard Input Tray (1-Row Minimal, Borderless, Icon First) -->
+      <div id="keyboardTray" class="keyboard-tray">
+        <div class="keyboard-input-wrap">
+          <input type="text" id="phoneTextInput" class="phone-input" placeholder="Type..." autocomplete="off" autocapitalize="off" spellcheck="false">
+          <!-- Backspace / Delete 1 Character Icon Button -->
+          <button type="button" id="btnKeyBackspace" class="btn-icon key-sub-btn" aria-label="Backspace">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"></path>
+              <line x1="18" y1="9" x2="12" y2="15"></line>
+              <line x1="12" y1="9" x2="18" y2="15"></line>
+            </svg>
+          </button>
+          <!-- Confirm / Submit Icon Button -->
+          <button type="button" id="btnSendText" class="btn-icon key-send-btn" aria-label="Confirm">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Center: High-Precision Trackpad Surface (Borderless, Silky Smooth) -->
+      <div class="trackpad-wrapper">
+        <div class="trackpad-surface" id="trackpadSurface"></div>
+      </div>
+
+      <!-- Lower Controls: Drag Hold Bar & Copy/Paste Row -->
+      <div class="stick-bottom-controls">
+        <!-- Hold-to-Drag Bar (丸アイコン全廃・ミニマルバー) -->
+        <div class="stick-drag-row">
+          <button type="button" id="btnStickDragHold" class="stick-drag-btn" aria-label="Hold to Drag"></button>
+        </div>
+
+        <!-- Copy & Paste Action Row (長押しバーの下に配置) -->
+        <div class="stick-action-row">
+          <!-- Copy Button -->
+          <button type="button" id="btnSideCopy" class="stick-action-btn" aria-label="Copy">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+          </button>
+
+          <!-- Paste Button -->
+          <button type="button" id="btnSidePaste" class="stick-action-btn" aria-label="Paste">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
             </svg>
           </button>
         </div>
@@ -646,7 +1185,7 @@
     </main>
   </div>
 
-  <!-- 3. Connect Modal (Icon Head & Controls) -->
+  <!-- 4. Connect Modal (Icon Head & Controls) -->
   <div id="connectModal" class="modal-backdrop">
     <div class="modal-panel">
       <div class="modal-head">
@@ -695,6 +1234,21 @@
             </svg>
           </button>
         </div>
+
+        <!-- 4-Digit Pairing PIN Code Display -->
+        <div class="pin-box">
+          <div class="pin-display">
+            <span class="pin-label">PIN</span>
+            <span id="pinDisplayCode" class="pin-value">----</span>
+          </div>
+          <button type="button" id="btnRegeneratePin" class="btn-icon" style="width: 34px; height: 34px;" aria-label="Regenerate PIN" title="Regenerate PIN">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -726,11 +1280,13 @@
           <div class="corner br"></div>
         </div>
       </div>
+      <div id="scanError" style="display:none; margin-top:12px; font-size:12px; opacity:0.6; text-align:center;"></div>
     </div>
   </div>
 
   <!-- 5. Settings Modal (Icon Controls) -->
-  <div id="settingsBackdrop" class="modal-backdrop">
+  <!-- 5. Slide Settings Modal (タイマー設定専用) -->
+  <div id="slideSettingsModal" class="modal-backdrop">
     <div class="modal-panel">
       <div class="modal-head">
         <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -738,7 +1294,7 @@
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
         </svg>
 
-        <button type="button" class="btn-icon" id="settingsCloseX" aria-label="Close">
+        <button type="button" class="btn-icon" id="slideSettingsCloseX" aria-label="Close">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -746,8 +1302,9 @@
         </button>
       </div>
 
+      <!-- Time Inputs -->
       <div class="time-inputs">
-        <input type="number" id="inputMinutes" class="time-input" value="10" min="0" max="180">
+        <input type="number" id="inputMinutes" class="time-input" value="0" min="0" max="180">
         <span style="font-family: var(--font-mono); font-weight: 600;">:</span>
         <input type="number" id="inputSeconds" class="time-input" value="0" min="0" max="59" step="5">
         <button type="button" id="applyTimeBtn" class="btn-icon" style="background: var(--color-ink); color: #ffffff; border-radius: 8px; width: 44px; height: 44px;" aria-label="Set">
@@ -757,13 +1314,14 @@
         </button>
       </div>
 
+      <!-- Preset Grid -->
       <div class="preset-grid">
         <button type="button" class="preset-btn" data-mins="3" data-secs="0">3m</button>
         <button type="button" class="preset-btn" data-mins="5" data-secs="0">5m</button>
-        <button type="button" class="preset-btn selected" data-mins="10" data-secs="0">10m</button>
+        <button type="button" class="preset-btn" data-mins="10" data-secs="0">10m</button>
         <button type="button" class="preset-btn" data-mins="15" data-secs="0">15m</button>
         <button type="button" class="preset-btn" data-mins="20" data-secs="0">20m</button>
-        <button type="button" class="preset-btn" data-mins="0" data-secs="0">
+        <button type="button" class="preset-btn selected" data-mins="0" data-secs="0">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="19" x2="12" y2="5"></line>
             <polyline points="5 12 12 5 19 12"></polyline>
@@ -771,6 +1329,7 @@
         </button>
       </div>
 
+      <!-- Keep Awake Toggle -->
       <div class="toggle-row">
         <div style="display: flex; align-items: center; gap: 8px;">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -785,7 +1344,7 @@
             <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
           </svg>
         </div>
-        <input type="checkbox" id="toggleAwake" checked style="accent-color: var(--color-primary); width: 18px; height: 18px; cursor: pointer;">
+        <input type="checkbox" id="toggleAwakeSlide" checked style="accent-color: var(--color-primary); width: 18px; height: 18px; cursor: pointer;">
       </div>
 
       <div class="modal-actions">
@@ -798,9 +1357,109 @@
         </button>
 
         <!-- Done / Confirm Icon Button -->
-        <button type="button" id="settingsDoneBtn" class="btn-icon" style="background: var(--color-ink); color: #ffffff;" aria-label="Done">
+        <button type="button" id="slideSettingsDoneBtn" class="btn-icon" style="background: var(--color-ink); color: #ffffff;" aria-label="Done">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. Trackpad Settings Modal (感度設定専用) -->
+  <div id="trackpadSettingsModal" class="modal-backdrop">
+    <div class="modal-panel">
+      <div class="modal-head">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+
+        <button type="button" class="btn-icon" id="trackpadSettingsCloseX" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Trackpad Sensitivity -->
+      <div style="margin-bottom: 20px; padding: 14px; background: var(--color-surface-1); border-radius: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M12 2v3m0 14v3M2 12h3m14 0h3"></path>
+          </svg>
+          <span id="sensitivityText" style="font-family: var(--font-mono); font-size: 14px; font-weight: 600;">5</span>
+        </div>
+        <input type="range" id="inputSensitivity" min="1" max="10" value="5" step="1" style="width: 100%; accent-color: var(--color-ink); cursor: pointer;">
+      </div>
+
+      <!-- Keep Awake Toggle -->
+      <div class="toggle-row">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        </div>
+        <input type="checkbox" id="toggleAwakeTrackpad" checked style="accent-color: var(--color-primary); width: 18px; height: 18px; cursor: pointer;">
+      </div>
+
+      <div class="modal-actions" style="justify-content: flex-end;">
+        <!-- Done / Confirm Icon Button -->
+        <button type="button" id="trackpadSettingsDoneBtn" class="btn-icon" style="background: var(--color-ink); color: #ffffff;" aria-label="Done">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. PIN Authentication Modal (Borderless, Minimal Keypad) -->
+  <div id="pinAuthModal" class="modal-backdrop">
+    <div class="modal-panel pin-auth-panel">
+      <div class="pin-auth-head">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+      </div>
+
+      <!-- 4 Digit Indicator Dots -->
+      <div class="pin-indicator-row" id="pinSlots">
+        <span class="pin-dot"></span>
+        <span class="pin-dot"></span>
+        <span class="pin-dot"></span>
+        <span class="pin-dot"></span>
+      </div>
+
+      <!-- Numeric Keypad (Borderless Flat Touch Buttons) -->
+      <div class="pin-keypad" id="pinKeypad">
+        <button type="button" class="pin-key" data-digit="1">1</button>
+        <button type="button" class="pin-key" data-digit="2">2</button>
+        <button type="button" class="pin-key" data-digit="3">3</button>
+        <button type="button" class="pin-key" data-digit="4">4</button>
+        <button type="button" class="pin-key" data-digit="5">5</button>
+        <button type="button" class="pin-key" data-digit="6">6</button>
+        <button type="button" class="pin-key" data-digit="7">7</button>
+        <button type="button" class="pin-key" data-digit="8">8</button>
+        <button type="button" class="pin-key" data-digit="9">9</button>
+        <div class="pin-key-dummy"></div>
+        <button type="button" class="pin-key" data-digit="0">0</button>
+        <button type="button" class="pin-key pin-key-back" id="btnPinDelete" aria-label="Delete">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"></path>
+            <line x1="18" y1="9" x2="12" y2="15"></line>
+            <line x1="12" y1="9" x2="18" y2="15"></line>
           </svg>
         </button>
       </div>
@@ -821,10 +1480,383 @@
     }
 
     const cardSlideSwitch = document.getElementById('cardSlideSwitch');
+    const cardTrackpad = document.getElementById('cardTrackpad');
     const btnBackToMenu = document.getElementById('btnBackToMenu');
 
     if (cardSlideSwitch) cardSlideSwitch.addEventListener('click', () => switchView('viewSlideSwitch'));
-    if (btnBackToMenu) btnBackToMenu.addEventListener('click', () => switchView('viewToolMenu'));
+    if (cardTrackpad) cardTrackpad.addEventListener('click', () => switchView('viewTrackpad'));
+    if (btnBackToMenu) btnBackToMenu.addEventListener('click', () => {
+      pauseTimer();
+      switchView('viewToolMenu');
+    });
+
+    // --------------------------------------------------------------------------
+    // Joystick Mouse Control (Portrait, Joycon-Style) & Actions
+    // --------------------------------------------------------------------------
+    const btnTrackpadBack = document.getElementById('btnTrackpadBack');
+    const btnStickSettings = document.getElementById('btnStickSettings');
+    const btnSideCopy = document.getElementById('btnSideCopy');
+    const btnSidePaste = document.getElementById('btnSidePaste');
+    const btnStickDragHold = document.getElementById('btnStickDragHold');
+
+    const inputSensitivity = document.getElementById('inputSensitivity');
+    const sensitivityText = document.getElementById('sensitivityText');
+
+    let currentSensitivity = parseInt(localStorage.getItem('mouseSensitivity'), 10) || 5;
+    if (inputSensitivity && sensitivityText) {
+      inputSensitivity.value = currentSensitivity;
+      sensitivityText.textContent = currentSensitivity;
+
+      inputSensitivity.addEventListener('input', () => {
+        currentSensitivity = parseInt(inputSensitivity.value, 10) || 5;
+        sensitivityText.textContent = currentSensitivity;
+        localStorage.setItem('mouseSensitivity', currentSensitivity);
+      });
+    }
+
+    function sendWsPayload(payload) {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify(payload));
+      }
+    }
+
+    if (btnTrackpadBack) {
+      btnTrackpadBack.addEventListener('click', () => switchView('viewToolMenu'));
+    }
+
+
+
+    // クリップボード: コピー
+    if (btnSideCopy) {
+      btnSideCopy.addEventListener('click', () => {
+        sendWsPayload({ type: 'clipboard', action: 'copy' });
+        if (navigator.vibrate) try { navigator.vibrate(25); } catch (e) {}
+        btnSideCopy.classList.add('active');
+        setTimeout(() => btnSideCopy.classList.remove('active'), 180);
+      });
+    }
+
+    // クリップボード: ペースト
+    if (btnSidePaste) {
+      btnSidePaste.addEventListener('click', () => {
+        sendWsPayload({ type: 'clipboard', action: 'paste' });
+        if (navigator.vibrate) try { navigator.vibrate(25); } catch (e) {}
+        btnSidePaste.classList.add('active');
+        setTimeout(() => btnSidePaste.classList.remove('active'), 180);
+      });
+    }
+
+    // --------------------------------------------------------------------------
+    // 遠隔キーボード制御ロジック
+    // --------------------------------------------------------------------------
+    const btnToggleKeyboard = document.getElementById('btnToggleKeyboard');
+    const keyboardTray = document.getElementById('keyboardTray');
+    const phoneTextInput = document.getElementById('phoneTextInput');
+    const btnSendText = document.getElementById('btnSendText');
+    const btnKeyBackspace = document.getElementById('btnKeyBackspace');
+
+    function sendPhoneText() {
+      if (!phoneTextInput) return;
+      const text = phoneTextInput.value;
+      if (text.length > 0) {
+        sendWsPayload({ type: 'keyboard_text', text });
+        phoneTextInput.value = '';
+        if (navigator.vibrate) try { navigator.vibrate(20); } catch (e) {}
+      }
+    }
+
+    if (btnToggleKeyboard && keyboardTray) {
+      btnToggleKeyboard.addEventListener('click', () => {
+        const isOpening = !keyboardTray.classList.contains('active');
+        keyboardTray.classList.toggle('active');
+        btnToggleKeyboard.classList.toggle('active', isOpening);
+        if (isOpening && phoneTextInput) {
+          setTimeout(() => phoneTextInput.focus(), 100);
+        }
+      });
+    }
+
+    // テキスト確定キー（入力内容をPCへ注入）
+    if (btnSendText) {
+      btnSendText.addEventListener('click', sendPhoneText);
+    }
+
+    if (phoneTextInput) {
+      phoneTextInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          if (e.isComposing) return; // 日本語IME変換確定時は送信しない
+          e.preventDefault();
+          sendPhoneText();
+          setTimeout(() => phoneTextInput.focus(), 50);
+        }
+      });
+    }
+
+    // 一文字削除ボタン（PCのアクティブな入力欄から1文字消す ＋ スマホ入力中の文字も1文字消す）
+    if (btnKeyBackspace) {
+      btnKeyBackspace.addEventListener('click', () => {
+        sendWsPayload({ type: 'keyboard_key', key: 'BACKSPACE' });
+        if (phoneTextInput && phoneTextInput.value.length > 0) {
+          phoneTextInput.value = phoneTextInput.value.slice(0, -1);
+        }
+        if (navigator.vibrate) try { navigator.vibrate(15); } catch (e) {}
+      });
+    }
+
+    // ドラッグボタン: 「長押し（ホールド）」実装
+    // 押している間だけドラッグ状態になり、指を離すと即座に解除
+    let isHoldingDrag = false;
+
+    function startDragHold(e) {
+      if (e) e.preventDefault();
+      if (isHoldingDrag) return;
+      isHoldingDrag = true;
+      if (btnStickDragHold) btnStickDragHold.classList.add('holding');
+      sendWsPayload({ type: 'mouse_drag', state: 'start' });
+      if (navigator.vibrate) try { navigator.vibrate(35); } catch (err) {}
+    }
+
+    function stopDragHold(e) {
+      if (e && e.cancelable) e.preventDefault();
+      if (!isHoldingDrag) return;
+      isHoldingDrag = false;
+      if (btnStickDragHold) btnStickDragHold.classList.remove('holding');
+      sendWsPayload({ type: 'mouse_drag', state: 'end' });
+      if (navigator.vibrate) try { navigator.vibrate(20); } catch (err) {}
+    }
+
+    if (btnStickDragHold) {
+      // touchイベントで確実に補足（pointercaptureによるマルチタッチ阻害を回避）
+      btnStickDragHold.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        startDragHold(e);
+      }, { passive: false });
+      btnStickDragHold.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        stopDragHold(e);
+      }, { passive: false });
+      btnStickDragHold.addEventListener('touchcancel', (e) => {
+        stopDragHold(e);
+      }, { passive: false });
+
+      // PCマウス操作時用のフォールバック
+      btnStickDragHold.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        startDragHold(e);
+      });
+      window.addEventListener('mouseup', () => {
+        if (isHoldingDrag) stopDragHold();
+      });
+      btnStickDragHold.addEventListener('contextmenu', (e) => e.preventDefault());
+    }
+
+    // セーフティ: ウィンドウが非アクティブ化されたら確実にドラッグ解除
+    window.addEventListener('blur', () => {
+      if (isHoldingDrag) stopDragHold();
+    });
+
+    // --------------------------------------------------------------------------
+    // 高精度・超滑らかトラックパッド制御ロジック (EMA平滑化 ＋ 非線形加速 ＋ RAF同期)
+    // --------------------------------------------------------------------------
+    const trackpadSurface = document.getElementById('trackpadSurface');
+
+    // 高精度サブピクセル・アキュムレータ (端数を完全保持してカクつきを完全排除)
+    let touchTracking = new Map(); // touchId -> { curX, curY, startX, startY, startTime }
+    let accumX = 0;
+    let accumY = 0;
+    let accumScroll = 0;
+
+    // 二本指タップ判定用 (二本指タップで右クリック)
+    let twoFingerStartTime = 0;
+    let twoFingerCandidate = false;
+    let lastTwoFingerTapTime = 0;
+
+    // トラックパッド直接長押しドラッグ用タイマー
+    let directDragTimer = null;
+    let isDirectDragging = false;
+
+    // アニメーションフレーム同期ループ (ディスプレイ更新周期に合わせて一定間隔で滑らかに送信)
+    function trackpadSyncLoop() {
+      // 整数ピクセル分を取り出して送信
+      const moveX = Math.trunc(accumX);
+      const moveY = Math.trunc(accumY);
+
+      if (moveX !== 0 || moveY !== 0) {
+        sendWsPayload({ type: 'mouse_move', dx: moveX, dy: moveY });
+        // 送信した整数分のみを引き、1px未満の端数は次フレームへ完全に保持！
+        accumX -= moveX;
+        accumY -= moveY;
+      }
+
+      // 2本指スクロール
+      const scrollY = Math.trunc(accumScroll);
+      if (scrollY !== 0) {
+        sendWsPayload({ type: 'mouse_scroll', delta: scrollY });
+        accumScroll -= scrollY;
+      }
+
+      requestAnimationFrame(trackpadSyncLoop);
+    }
+    requestAnimationFrame(trackpadSyncLoop);
+
+    if (trackpadSurface) {
+      trackpadSurface.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        trackpadSurface.classList.add('touching');
+
+        const touches = e.targetTouches;
+
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          const t = e.changedTouches[i];
+          touchTracking.set(t.identifier, {
+            curX: t.clientX,
+            curY: t.clientY,
+            startX: t.clientX,
+            startY: t.clientY,
+            startTime: Date.now()
+          });
+        }
+
+        // 2本指タップ候補の検出
+        if (touches.length === 2) {
+          twoFingerStartTime = Date.now();
+          twoFingerCandidate = true;
+          if (directDragTimer) { clearTimeout(directDragTimer); directDragTimer = null; }
+        } else if (touches.length === 1 && !isHoldingDrag) {
+          twoFingerCandidate = false;
+          // トラックパッド直接長押し判定: 380ms 静止でドラッグ開始
+          const t = touches[0];
+          directDragTimer = setTimeout(() => {
+            if (touchTracking.has(t.identifier) && e.targetTouches.length === 1) {
+              const info = touchTracking.get(t.identifier);
+              const dist = Math.hypot(info.curX - info.startX, info.curY - info.startY);
+              if (dist < 10 && !isHoldingDrag && !isDirectDragging) {
+                isDirectDragging = true;
+                sendWsPayload({ type: 'mouse_drag', state: 'start' });
+                if (btnStickDragHold) btnStickDragHold.classList.add('holding');
+                if (navigator.vibrate) try { navigator.vibrate(40); } catch (err) {}
+              }
+            }
+          }, 380);
+        } else {
+          twoFingerCandidate = false;
+          if (directDragTimer) { clearTimeout(directDragTimer); directDragTimer = null; }
+        }
+      }, { passive: false });
+
+      trackpadSurface.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        // ★重要: e.touches(全体) ではなく e.targetTouches(トラックパッド上のみ) を参照
+        const touches = e.targetTouches;
+
+        if (touches.length === 1) {
+          // 1本指: カーソル移動
+          const t = touches[0];
+          const prev = touchTracking.get(t.identifier);
+          if (prev) {
+            const rawDx = t.clientX - prev.curX;
+            const rawDy = t.clientY - prev.curY;
+            prev.curX = t.clientX;
+            prev.curY = t.clientY;
+
+            const totalMoved = Math.hypot(t.clientX - prev.startX, t.clientY - prev.startY);
+            if (totalMoved > 10 && directDragTimer && !isDirectDragging) {
+              clearTimeout(directDragTimer);
+              directDragTimer = null;
+            }
+
+            const dist = Math.hypot(rawDx, rawDy);
+            if (dist > 0) {
+              const sens = 0.7 + (currentSensitivity * 0.13);
+              const accel = dist < 2.5 ? 1.0 : Math.min(2.5, 1.0 + (dist - 2.5) * 0.1);
+
+              accumX += rawDx * sens * accel;
+              accumY += rawDy * sens * accel;
+            }
+          }
+        } else if (touches.length === 2) {
+          // 2本指: スクロール
+          if (directDragTimer) { clearTimeout(directDragTimer); directDragTimer = null; }
+
+          const t0 = touches[0];
+          const t1 = touches[1];
+          const prev0 = touchTracking.get(t0.identifier);
+          const prev1 = touchTracking.get(t1.identifier);
+          if (prev0 && prev1) {
+            const dy0 = t0.clientY - prev0.curY;
+            const dy1 = t1.clientY - prev1.curY;
+            prev0.curX = t0.clientX;
+            prev0.curY = t0.clientY;
+            prev1.curX = t1.clientX;
+            prev1.curY = t1.clientY;
+
+            // 移動量が大きければ2本指タップ候補をキャンセル
+            const move0 = Math.hypot(t0.clientX - prev0.startX, t0.clientY - prev0.startY);
+            const move1 = Math.hypot(t1.clientX - prev1.startX, t1.clientY - prev1.startY);
+            if (move0 > 8 || move1 > 8) {
+              twoFingerCandidate = false;
+            }
+
+            // ★ スクロール上下反転 (-=)
+            accumScroll -= ((dy0 + dy1) / 2) * 1.6;
+          }
+        }
+      }, { passive: false });
+
+      const handleTouchEnd = (e) => {
+        const now = Date.now();
+        if (directDragTimer) {
+          clearTimeout(directDragTimer);
+          directDragTimer = null;
+        }
+
+        // 直接長押しドラッグ中だった場合は終了
+        if (isDirectDragging) {
+          isDirectDragging = false;
+          if (!isHoldingDrag) {
+            sendWsPayload({ type: 'mouse_drag', state: 'end' });
+            if (btnStickDragHold) btnStickDragHold.classList.remove('holding');
+            if (navigator.vibrate) try { navigator.vibrate(20); } catch (err) {}
+          }
+        }
+
+        // 2本指タップ判定: 300ms未満 & 候補フラグ有効 → 右クリック
+        if (twoFingerCandidate && (now - twoFingerStartTime < 300) && e.targetTouches.length === 0) {
+          twoFingerCandidate = false;
+          lastTwoFingerTapTime = now;
+          sendWsPayload({ type: 'mouse_click', button: 'right' });
+          if (navigator.vibrate) try { navigator.vibrate(25); } catch (err) {}
+        }
+
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          const t = e.changedTouches[i];
+          const track = touchTracking.get(t.identifier);
+          if (track) {
+            const dist = Math.hypot(t.clientX - track.startX, t.clientY - track.startY);
+            const duration = now - track.startTime;
+
+            // 1本指タップ判定: 280ms未満 & 移動7px以内 & 2本指タップ直後でない & ドラッグ中でない → 左クリック
+            if (e.targetTouches.length === 0 && duration < 280 && dist < 7 &&
+                (now - lastTwoFingerTapTime > 350) && !isHoldingDrag && !isDirectDragging) {
+              sendWsPayload({ type: 'mouse_click', button: 'left' });
+              if (navigator.vibrate) try { navigator.vibrate(15); } catch (err) {}
+            }
+            touchTracking.delete(t.identifier);
+          }
+        }
+
+        if (e.targetTouches.length === 0) {
+          trackpadSurface.classList.remove('touching');
+          accumX = 0;
+          accumY = 0;
+          accumScroll = 0;
+          twoFingerCandidate = false;
+        }
+      };
+
+      trackpadSurface.addEventListener('touchend', handleTouchEnd, { passive: false });
+      trackpadSurface.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+    }
 
     // --------------------------------------------------------------------------
     // Connect QR Modal
@@ -848,18 +1880,21 @@
     });
 
     // --------------------------------------------------------------------------
-    // Camera Scanner Modal (QR Reader)
+    // Camera Scanner Modal (QR Reader) - jsQR & BarcodeDetector 双方対応
     // --------------------------------------------------------------------------
     const cameraModal = document.getElementById('cameraModal');
     const cardScanCamera = document.getElementById('cardScanCamera');
     const btnMenuScan = document.getElementById('btnMenuScan');
     const cameraCloseX = document.getElementById('cameraCloseX');
     const scanVideo = document.getElementById('scanVideo');
+    const scanError = document.getElementById('scanError');
 
     let cameraStream = null;
-    let scanInterval = null;
-    let barcodeDetector = null;
+    let scanAnimationId = null;
+    let scanCanvas = null;
+    let scanCtx = null;
 
+    let barcodeDetector = null;
     if ('BarcodeDetector' in window) {
       try {
         barcodeDetector = new BarcodeDetector({ formats: ['qr_code'] });
@@ -868,16 +1903,39 @@
 
     async function openCameraScanner() {
       cameraModal.classList.add('active');
+      if (scanError) {
+        scanError.style.display = 'none';
+        scanError.textContent = '';
+      }
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showScanError('Camera not supported on this browser');
+        return;
+      }
+
       try {
         cameraStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } },
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
           audio: false
         });
         scanVideo.srcObject = cameraStream;
+        scanVideo.setAttribute('playsinline', 'true'); // iOS Safari対策
         await scanVideo.play();
         startScanLoop();
       } catch (err) {
         console.error('Camera access error:', err);
+        showScanError('Camera permission required or device unavailable');
+      }
+    }
+
+    function showScanError(msg) {
+      if (scanError) {
+        scanError.textContent = msg;
+        scanError.style.display = 'block';
       }
     }
 
@@ -888,31 +1946,75 @@
         cameraStream.getTracks().forEach(track => track.stop());
         cameraStream = null;
       }
-      scanVideo.srcObject = null;
+      if (scanVideo) scanVideo.srcObject = null;
     }
 
     function startScanLoop() {
-      if (!barcodeDetector) return;
-      scanInterval = setInterval(async () => {
-        if (!scanVideo || scanVideo.readyState < 2) return;
-        try {
-          const barcodes = await barcodeDetector.detect(scanVideo);
-          if (barcodes && barcodes.length > 0) {
-            const qrText = barcodes[0].rawValue;
-            if (qrText && qrText.startsWith('http')) {
-              stopScanLoop();
-              closeCameraScanner();
-              window.location.href = qrText;
+      if (!scanCanvas) {
+        scanCanvas = document.createElement('canvas');
+        scanCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
+      }
+
+      const scanStep = async () => {
+        if (!cameraStream || scanVideo.readyState < 2) {
+          scanAnimationId = requestAnimationFrame(scanStep);
+          return;
+        }
+
+        const width = scanVideo.videoWidth;
+        const height = scanVideo.videoHeight;
+        if (width === 0 || height === 0) {
+          scanAnimationId = requestAnimationFrame(scanStep);
+          return;
+        }
+
+        let detectedUrl = null;
+
+        // 1. 高速なNative BarcodeDetector（Android Chrome等）
+        if (barcodeDetector) {
+          try {
+            const barcodes = await barcodeDetector.detect(scanVideo);
+            if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+              detectedUrl = barcodes[0].rawValue.trim();
             }
+          } catch (e) {}
+        }
+
+        // 2. jsQRフォールバック（iOS Safari全バージョン対応）
+        if (!detectedUrl && window.jsQR) {
+          try {
+            scanCanvas.width = width;
+            scanCanvas.height = height;
+            scanCtx.drawImage(scanVideo, 0, 0, width, height);
+            const imageData = scanCtx.getImageData(0, 0, width, height);
+            const qrCode = window.jsQR(imageData.data, imageData.width, imageData.height, {
+              inversionAttempts: 'dontInvert'
+            });
+            if (qrCode && qrCode.data) {
+              detectedUrl = qrCode.data.trim();
+            }
+          } catch (e) {}
+        }
+
+        if (detectedUrl && (detectedUrl.startsWith('http://') || detectedUrl.startsWith('https://'))) {
+          if (navigator.vibrate) {
+            try { navigator.vibrate(100); } catch (e) {}
           }
-        } catch (e) {}
-      }, 300);
+          closeCameraScanner();
+          window.location.href = detectedUrl;
+          return;
+        }
+
+        scanAnimationId = requestAnimationFrame(scanStep);
+      };
+
+      scanAnimationId = requestAnimationFrame(scanStep);
     }
 
     function stopScanLoop() {
-      if (scanInterval) {
-        clearInterval(scanInterval);
-        scanInterval = null;
+      if (scanAnimationId) {
+        cancelAnimationFrame(scanAnimationId);
+        scanAnimationId = null;
       }
     }
 
@@ -935,13 +2037,31 @@
     const qrImage = document.getElementById('qrImage');
     const remoteUrlDisplay = document.getElementById('remoteUrlDisplay');
     const copyUrlBtn = document.getElementById('copyUrlBtn');
+    const pinDisplayCode = document.getElementById('pinDisplayCode');
+    const btnRegeneratePin = document.getElementById('btnRegeneratePin');
 
     async function loadServerInfo() {
       try {
         const res = await fetch('/api/info');
         serverInfo = await res.json();
         updateQrDisplay();
+        if (pinDisplayCode && serverInfo.pin) {
+          pinDisplayCode.textContent = serverInfo.pin;
+        }
       } catch (err) {}
+    }
+
+    if (btnRegeneratePin) {
+      btnRegeneratePin.addEventListener('click', async () => {
+        try {
+          const res = await fetch('/api/regenerate-pin', { method: 'POST' });
+          const data = await res.json();
+          if (data.pin && pinDisplayCode) {
+            pinDisplayCode.textContent = data.pin;
+            if (navigator.vibrate) try { navigator.vibrate(25); } catch (e) {}
+          }
+        } catch (e) {}
+      });
     }
 
     function updateQrDisplay() {
@@ -979,6 +2099,73 @@
     });
 
     // --------------------------------------------------------------------------
+    // PIN Authentication Logic (テンキー & 4桁認証)
+    // --------------------------------------------------------------------------
+    const pinAuthModal = document.getElementById('pinAuthModal');
+    const pinSlots = document.getElementById('pinSlots');
+    const pinKeypad = document.getElementById('pinKeypad');
+    const btnPinDelete = document.getElementById('btnPinDelete');
+
+    let enteredPin = '';
+    let isAuthenticated = false;
+
+    function openPinModal() {
+      if (isAuthenticated) return;
+      if (pinAuthModal) pinAuthModal.classList.add('active');
+    }
+
+    function closePinModal() {
+      isAuthenticated = true;
+      if (pinAuthModal) pinAuthModal.classList.remove('active');
+    }
+
+    function updatePinDots() {
+      if (!pinSlots) return;
+      const dots = pinSlots.querySelectorAll('.pin-dot');
+      dots.forEach((dot, idx) => {
+        if (idx < enteredPin.length) dot.classList.add('filled');
+        else dot.classList.remove('filled');
+      });
+    }
+
+    function triggerPinShake() {
+      if (!pinSlots) return;
+      pinSlots.classList.add('shake');
+      if (navigator.vibrate) try { navigator.vibrate([40, 60, 40]); } catch (e) {}
+      setTimeout(() => {
+        pinSlots.classList.remove('shake');
+        enteredPin = '';
+        updatePinDots();
+      }, 400);
+    }
+
+    if (pinKeypad) {
+      pinKeypad.querySelectorAll('.pin-key[data-digit]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (enteredPin.length < 4) {
+            enteredPin += btn.getAttribute('data-digit');
+            updatePinDots();
+            if (navigator.vibrate) try { navigator.vibrate(15); } catch (e) {}
+            if (enteredPin.length === 4) {
+              sendWsPayload({ type: 'auth', pin: enteredPin });
+              localStorage.setItem('wss_pin', enteredPin);
+            }
+          }
+        });
+      });
+    }
+
+    if (btnPinDelete) {
+      btnPinDelete.addEventListener('click', () => {
+        if (enteredPin.length > 0) {
+          enteredPin = enteredPin.slice(0, -1);
+          updatePinDots();
+          if (navigator.vibrate) try { navigator.vibrate(15); } catch (e) {}
+        }
+      });
+    }
+
+    // --------------------------------------------------------------------------
     // WebSocket 接続
     // --------------------------------------------------------------------------
     let socket = null;
@@ -992,11 +2179,33 @@
       socket.addEventListener('open', () => {
         updateWsIndicator(true);
         const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlPin = urlParams.get('pin');
+        const savedPin = urlPin || localStorage.getItem('wss_pin') || '';
+        if (urlPin) localStorage.setItem('wss_pin', urlPin);
+
         socket.send(JSON.stringify({
           type: 'register',
-          clientType: isLocalHost ? 'pc' : 'mobile'
+          clientType: isLocalHost ? 'pc' : 'mobile',
+          pin: savedPin
         }));
         requestWakeLock();
+      });
+
+      socket.addEventListener('message', (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === 'auth_required' || msg.type === 'auth_fail') {
+            isAuthenticated = false;
+            openPinModal();
+            if (msg.type === 'auth_fail') {
+              localStorage.removeItem('wss_pin');
+              triggerPinShake();
+            }
+          } else if (msg.type === 'auth_success') {
+            closePinModal();
+          }
+        } catch (e) {}
       });
 
       socket.addEventListener('close', () => {
@@ -1011,21 +2220,24 @@
       const dotClass = isConnected ? 'status-dot active' : 'status-dot warning';
       if (menuWsDot) menuWsDot.className = dotClass;
       if (remoteWsDot) remoteWsDot.className = dotClass;
+      const trackpadWsDot = document.getElementById('trackpadWsDot');
+      if (trackpadWsDot) trackpadWsDot.className = dotClass;
     }
 
     // --------------------------------------------------------------------------
     // プレゼン操作 (タイマー & キー送信)
     // --------------------------------------------------------------------------
     let currentSlide = 1;
-    const slideNum = document.getElementById('slideNum');
     const mainTimerText = document.getElementById('mainTimerText');
-    const pauseBtn = document.getElementById('pauseBtn');
+    const timerToggleBtn = document.getElementById('timerToggleBtn');
+    const btnResetTimerDirect = document.getElementById('btnResetTimerDirect');
     const flashOverlay = document.getElementById('flashOverlay');
     const btnNext = document.getElementById('btnNext');
     const btnPrev = document.getElementById('btnPrev');
 
-    let targetTotalSeconds = 10 * 60;
-    let remainingSeconds = 10 * 60;
+    // ストップウォッチ (デフォルト: カウントアップ方式 00:00スタート)
+    let targetTotalSeconds = 0;
+    let remainingSeconds = 0;
     let elapsedSeconds = 0;
     let timerInterval = null;
     let isTimerRunning = false;
@@ -1052,12 +2264,18 @@
     function renderTimerUI() {
       const isCountdown = targetTotalSeconds > 0;
       const displaySec = isCountdown ? remainingSeconds : elapsedSeconds;
-      mainTimerText.textContent = formatTimeDisplay(displaySec, isCountdown);
+      if (mainTimerText) {
+        mainTimerText.textContent = formatTimeDisplay(displaySec, isCountdown);
+      }
 
-      if (isTimerRunning) {
-        pauseBtn.classList.remove('paused');
-      } else {
-        pauseBtn.classList.add('paused');
+      if (timerToggleBtn) {
+        if (isTimerRunning) {
+          timerToggleBtn.classList.remove('timer-paused');
+          timerToggleBtn.classList.add('timer-running');
+        } else {
+          timerToggleBtn.classList.add('timer-paused');
+          timerToggleBtn.classList.remove('timer-running');
+        }
       }
     }
 
@@ -1086,12 +2304,27 @@
       renderTimerUI();
     }
 
-    pauseBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
-    pauseBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (isTimerRunning) pauseTimer();
-      else startTimer();
-    });
+    // 中段タイマーボタン: テキスト・ボタンタップで停止/再開
+    if (timerToggleBtn) {
+      timerToggleBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (isTimerRunning) {
+          pauseTimer();
+        } else {
+          startTimer();
+        }
+        if (navigator.vibrate) try { navigator.vibrate(20); } catch (err) {}
+      });
+    }
+
+    // ヘッダータイマーリセットボタン
+    if (btnResetTimerDirect) {
+      btnResetTimerDirect.addEventListener('click', (e) => {
+        e.stopPropagation();
+        resetTimer();
+        if (navigator.vibrate) try { navigator.vibrate(20); } catch (err) {}
+      });
+    }
 
     let lastCommandTime = 0;
     const COMMAND_DEBOUNCE_MS = 200;
@@ -1104,33 +2337,25 @@
       flashOverlay.className = 'flash-overlay active';
       setTimeout(() => { flashOverlay.className = 'flash-overlay'; }, 70);
 
-      if (action === 'next' || action === 'prev') {
-        if (!isTimerRunning) startTimer();
-      }
-
       if (socket && socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({ type: 'command', action }));
         if (action === 'next') {
           currentSlide++;
-          slideNum.textContent = currentSlide;
         } else if (action === 'prev') {
           currentSlide = Math.max(1, currentSlide - 1);
-          slideNum.textContent = currentSlide;
         }
       }
     }
 
     function bindAction(el, action) {
       if (!el) return;
-      el.addEventListener('pointerdown', (e) => {
-        if (e.target.closest('#pauseBtn')) return;
+      el.addEventListener('pointerdown', () => {
         el.classList.add('pressed');
         sendCommand(action);
       });
       el.addEventListener('pointerup', () => el.classList.remove('pressed'));
       el.addEventListener('pointercancel', () => el.classList.remove('pressed'));
-      el.addEventListener('click', (e) => {
-        if (e.target.closest('#pauseBtn')) return;
+      el.addEventListener('click', () => {
         sendCommand(action);
       });
     }
@@ -1168,20 +2393,20 @@
     }, { passive: true });
 
     // --------------------------------------------------------------------------
-    // Settings Modal
+    // 1. Slide Settings Modal (タイマー設定専用)
     // --------------------------------------------------------------------------
     const settingsBtn = document.getElementById('settingsBtn');
-    const settingsBackdrop = document.getElementById('settingsBackdrop');
-    const settingsCloseX = document.getElementById('settingsCloseX');
-    const settingsDoneBtn = document.getElementById('settingsDoneBtn');
+    const slideSettingsModal = document.getElementById('slideSettingsModal');
+    const slideSettingsCloseX = document.getElementById('slideSettingsCloseX');
+    const slideSettingsDoneBtn = document.getElementById('slideSettingsDoneBtn');
     const resetTimerBtn = document.getElementById('resetTimerBtn');
     const inputMinutes = document.getElementById('inputMinutes');
     const inputSeconds = document.getElementById('inputSeconds');
     const applyTimeBtn = document.getElementById('applyTimeBtn');
-    const toggleAwake = document.getElementById('toggleAwake');
+    const toggleAwakeSlide = document.getElementById('toggleAwakeSlide');
     const presetButtons = document.querySelectorAll('.preset-btn');
 
-    function openSettings() {
+    function openSlideSettings() {
       if (targetTotalSeconds > 0) {
         inputMinutes.value = Math.floor(targetTotalSeconds / 60);
         inputSeconds.value = targetTotalSeconds % 60;
@@ -1189,34 +2414,43 @@
         inputMinutes.value = 0;
         inputSeconds.value = 0;
       }
-      settingsBackdrop.classList.add('active');
+      if (toggleAwakeSlide) toggleAwakeSlide.checked = isAwakeEnabled;
+      if (slideSettingsModal) slideSettingsModal.classList.add('active');
     }
 
-    function closeSettings() { settingsBackdrop.classList.remove('active'); }
+    function closeSlideSettings() {
+      if (slideSettingsModal) slideSettingsModal.classList.remove('active');
+    }
 
-    settingsBtn.addEventListener('click', openSettings);
-    if (settingsCloseX) settingsCloseX.addEventListener('click', closeSettings);
-    if (settingsDoneBtn) settingsDoneBtn.addEventListener('click', closeSettings);
-    settingsBackdrop.addEventListener('click', (e) => {
-      if (e.target === settingsBackdrop) closeSettings();
-    });
+    if (settingsBtn) settingsBtn.addEventListener('click', openSlideSettings);
+    if (slideSettingsCloseX) slideSettingsCloseX.addEventListener('click', closeSlideSettings);
+    if (slideSettingsDoneBtn) slideSettingsDoneBtn.addEventListener('click', closeSlideSettings);
+    if (slideSettingsModal) {
+      slideSettingsModal.addEventListener('click', (e) => {
+        if (e.target === slideSettingsModal) closeSlideSettings();
+      });
+    }
 
-    resetTimerBtn.addEventListener('click', () => {
-      resetTimer();
-      closeSettings();
-    });
-
-    applyTimeBtn.addEventListener('click', () => {
-      const mins = parseInt(inputMinutes.value, 10) || 0;
-      const secs = parseInt(inputSeconds.value, 10) || 0;
-      const totalSec = mins * 60 + secs;
-      if (totalSec >= 0) {
-        presetButtons.forEach(b => b.classList.remove('selected'));
-        targetTotalSeconds = totalSec;
+    if (resetTimerBtn) {
+      resetTimerBtn.addEventListener('click', () => {
         resetTimer();
-        closeSettings();
-      }
-    });
+        closeSlideSettings();
+      });
+    }
+
+    if (applyTimeBtn) {
+      applyTimeBtn.addEventListener('click', () => {
+        const mins = parseInt(inputMinutes.value, 10) || 0;
+        const secs = parseInt(inputSeconds.value, 10) || 0;
+        const totalSec = mins * 60 + secs;
+        if (totalSec >= 0) {
+          presetButtons.forEach(b => b.classList.remove('selected'));
+          targetTotalSeconds = totalSec;
+          resetTimer();
+          closeSlideSettings();
+        }
+      });
+    }
 
     presetButtons.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -1232,7 +2466,37 @@
     });
 
     // --------------------------------------------------------------------------
-    // Wake Lock
+    // 2. Trackpad Settings Modal (感度設定専用)
+    // --------------------------------------------------------------------------
+    const trackpadSettingsModal = document.getElementById('trackpadSettingsModal');
+    const trackpadSettingsCloseX = document.getElementById('trackpadSettingsCloseX');
+    const trackpadSettingsDoneBtn = document.getElementById('trackpadSettingsDoneBtn');
+    const toggleAwakeTrackpad = document.getElementById('toggleAwakeTrackpad');
+
+    function openTrackpadSettings() {
+      if (inputSensitivity && sensitivityText) {
+        inputSensitivity.value = currentSensitivity;
+        sensitivityText.textContent = currentSensitivity;
+      }
+      if (toggleAwakeTrackpad) toggleAwakeTrackpad.checked = isAwakeEnabled;
+      if (trackpadSettingsModal) trackpadSettingsModal.classList.add('active');
+    }
+
+    function closeTrackpadSettings() {
+      if (trackpadSettingsModal) trackpadSettingsModal.classList.remove('active');
+    }
+
+    if (btnStickSettings) btnStickSettings.addEventListener('click', openTrackpadSettings);
+    if (trackpadSettingsCloseX) trackpadSettingsCloseX.addEventListener('click', closeTrackpadSettings);
+    if (trackpadSettingsDoneBtn) trackpadSettingsDoneBtn.addEventListener('click', closeTrackpadSettings);
+    if (trackpadSettingsModal) {
+      trackpadSettingsModal.addEventListener('click', (e) => {
+        if (e.target === trackpadSettingsModal) closeTrackpadSettings();
+      });
+    }
+
+    // --------------------------------------------------------------------------
+    // Wake Lock (画面スリープ防止)
     // --------------------------------------------------------------------------
     let wakeLock = null;
     let isAwakeEnabled = true;
@@ -1257,11 +2521,25 @@
       if (fallbackVideo) fallbackVideo.pause();
     }
 
-    toggleAwake.addEventListener('change', () => {
-      isAwakeEnabled = toggleAwake.checked;
+    function setAwakeEnabled(enabled) {
+      isAwakeEnabled = enabled;
+      if (toggleAwakeSlide) toggleAwakeSlide.checked = enabled;
+      if (toggleAwakeTrackpad) toggleAwakeTrackpad.checked = enabled;
       if (isAwakeEnabled) requestWakeLock();
       else releaseWakeLock();
-    });
+    }
+
+    if (toggleAwakeSlide) {
+      toggleAwakeSlide.addEventListener('change', () => {
+        setAwakeEnabled(toggleAwakeSlide.checked);
+      });
+    }
+
+    if (toggleAwakeTrackpad) {
+      toggleAwakeTrackpad.addEventListener('change', () => {
+        setAwakeEnabled(toggleAwakeTrackpad.checked);
+      });
+    }
 
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible' && isAwakeEnabled) requestWakeLock();
