@@ -2037,6 +2037,16 @@
             try { navigator.vibrate(100); } catch (e) {}
           }
           closeCameraScanner();
+          // Cloudflare Pages上で開いている場合はPagesドメインを維持しserverパラメータをセット
+          if (window.location.hostname.endsWith('.pages.dev')) {
+            try {
+              const u = new URL(detectedUrl);
+              const pinVal = u.searchParams.get('pin') || '';
+              const target = `${window.location.origin}${window.location.pathname}?server=${encodeURIComponent(u.origin)}${pinVal ? '&pin=' + pinVal : ''}`;
+              window.location.href = target;
+              return;
+            } catch (e) {}
+          }
           window.location.href = detectedUrl;
           return;
         }
@@ -2063,6 +2073,45 @@
     });
 
     // --------------------------------------------------------------------------
+    // 接続先ターゲット解決 (Cloudflare Pages 静的ホスト & ローカル両対応)
+    // --------------------------------------------------------------------------
+    function getTargetServerConfig() {
+      const urlParams = new URLSearchParams(window.location.search);
+      let rawServer = urlParams.get('server') || localStorage.getItem('wss_server_target') || '';
+
+      const isPagesDev = window.location.hostname.endsWith('.pages.dev');
+      if (!rawServer && !isPagesDev) {
+        rawServer = window.location.origin;
+      }
+
+      if (rawServer) {
+        let httpOrigin = rawServer.trim();
+        if (!httpOrigin.startsWith('http://') && !httpOrigin.startsWith('https://')) {
+          const isSsl = httpOrigin.includes('trycloudflare.com') || window.location.protocol === 'https:';
+          httpOrigin = `${isSsl ? 'https:' : 'http:'}//${httpOrigin}`;
+        }
+        try {
+          const u = new URL(httpOrigin);
+          const isSecure = u.protocol === 'https:';
+          const wsUrl = `${isSecure ? 'wss:' : 'ws:'}//${u.host}`;
+          localStorage.setItem('wss_server_target', u.origin);
+          return {
+            httpOrigin: u.origin,
+            wsUrl: wsUrl,
+            host: u.host
+          };
+        } catch (e) {}
+      }
+
+      const isHttps = window.location.protocol === 'https:';
+      return {
+        httpOrigin: window.location.origin,
+        wsUrl: `${isHttps ? 'wss:' : 'ws:'}//${window.location.host}`,
+        host: window.location.host
+      };
+    }
+
+    // --------------------------------------------------------------------------
     // Server Info & QR
     // --------------------------------------------------------------------------
     let serverInfo = null;
@@ -2077,8 +2126,9 @@
     const btnRegeneratePin = document.getElementById('btnRegeneratePin');
 
     async function loadServerInfo() {
+      const cfg = getTargetServerConfig();
       try {
-        const res = await fetch('/api/info');
+        const res = await fetch(`${cfg.httpOrigin}/api/info`);
         serverInfo = await res.json();
         updateQrDisplay();
         if (pinDisplayCode && serverInfo.pin) {
@@ -2090,7 +2140,8 @@
     if (btnRegeneratePin) {
       btnRegeneratePin.addEventListener('click', async () => {
         try {
-          const res = await fetch('/api/regenerate-pin', { method: 'POST' });
+          const cfg = getTargetServerConfig();
+          const res = await fetch(`${cfg.httpOrigin}/api/regenerate-pin`, { method: 'POST' });
           const data = await res.json();
           if (data.pin && pinDisplayCode) {
             pinDisplayCode.textContent = data.pin;
@@ -2240,8 +2291,8 @@
     const remoteWsDot = document.getElementById('remoteWsDot');
 
     function connectWebSocket() {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      socket = new WebSocket(`${protocol}//${window.location.host}`);
+      const cfg = getTargetServerConfig();
+      socket = new WebSocket(cfg.wsUrl);
 
       socket.addEventListener('open', () => {
         updateWsIndicator(true);
