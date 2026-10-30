@@ -17,12 +17,7 @@ const wss = new WebSocketServer({ server });
 
 const PORT = process.env.PORT || 3000;
 
-// 4桁のセキュア接続PINコード管理
-function generatePin() {
-  return Math.floor(1000 + Math.random() * 9000).toString();
-}
-let currentPin = generatePin();
-console.log(`[Security] 4桁のペアリングPINコードが発行されました: 👉 ${currentPin}`);
+// PINコード認証は無効化（即時接続・操作許可）
 
 // ------------------------------------------------------------------------------
 // 1. Windows Native キーストローク送信管理 (user32.dll keybd_event)
@@ -243,28 +238,16 @@ app.get('/api/info', async (req, res) => {
       tunnelQrDataUrl,
       hasTunnel: !!currentTunnelUrl,
       connectedClients: wss.clients.size,
-      sleepPrevention: isKeyEngineReady,
-      pin: currentPin
+      sleepPrevention: isKeyEngineReady
     });
   } catch (err) {
     res.status(500).json({ error: '接続情報の生成に失敗しました' });
   }
 });
 
-// PINコード再生成API
+// PINコード再生成API（無効化・互換ダミー）
 app.post('/api/regenerate-pin', (req, res) => {
-  currentPin = generatePin();
-  console.log(`[Security] PINコードが再生成されました: 👉 ${currentPin}`);
-  // 接続中のモバイル端末を未認証に戻して再入力を促す
-  for (const [ws, info] of clients.entries()) {
-    if (info.type === 'mobile') {
-      info.authenticated = false;
-      if (ws.readyState === ws.OPEN) {
-        ws.send(JSON.stringify({ type: 'auth_required' }));
-      }
-    }
-  }
-  res.json({ success: true, pin: currentPin });
+  res.json({ success: true });
 });
 
 // ------------------------------------------------------------------------------
@@ -301,7 +284,7 @@ wss.on('connection', (ws, req) => {
     type: 'unknown',
     ip: req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.socket.remoteAddress,
     connectedAt: Date.now(),
-    authenticated: false
+    authenticated: true // PIN認証無効化のため常時認証済み
   };
   clients.set(ws, clientInfo);
 
@@ -313,38 +296,18 @@ wss.on('connection', (ws, req) => {
 
       if (data.type === 'register') {
         clientInfo.type = data.clientType || 'unknown';
-        // PC画面側はホスト表示のため自動認証
-        if (clientInfo.type === 'pc') {
-          clientInfo.authenticated = true;
-        } else if (data.pin && String(data.pin).trim() === currentPin) {
-          // URLパラメータ等でPINが同梱されている場合は自動認証
-          clientInfo.authenticated = true;
-          ws.send(JSON.stringify({ type: 'auth_success' }));
-        }
+        clientInfo.authenticated = true;
         clients.set(ws, clientInfo);
-        console.log(`[WebSocket] クライアント登録: ${clientInfo.type} (${clientInfo.ip}, auth=${clientInfo.authenticated})`);
+        ws.send(JSON.stringify({ type: 'auth_success' }));
+        console.log(`[WebSocket] クライアント接続: ${clientInfo.type} (${clientInfo.ip})`);
         broadcastStatus();
         return;
       }
 
-      // PINコード認証要求
+      // PINコード認証要求（互換性のため即時成功を返却）
       if (data.type === 'auth') {
-        const inputPin = String(data.pin || '').trim();
-        if (inputPin === currentPin) {
-          clientInfo.authenticated = true;
-          console.log(`[Security] PIN認証成功: ${clientInfo.ip}`);
-          ws.send(JSON.stringify({ type: 'auth_success' }));
-        } else {
-          clientInfo.authenticated = false;
-          console.warn(`[Security] PIN認証失敗 (入力: ${inputPin}): ${clientInfo.ip}`);
-          ws.send(JSON.stringify({ type: 'auth_fail' }));
-        }
-        return;
-      }
-
-      // 未認証のモバイルクライアントからの操作はすべて破棄
-      if (!clientInfo.authenticated && clientInfo.type !== 'pc') {
-        ws.send(JSON.stringify({ type: 'auth_required' }));
+        clientInfo.authenticated = true;
+        ws.send(JSON.stringify({ type: 'auth_success' }));
         return;
       }
 

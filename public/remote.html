@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Slide Controller</title>
   <link rel="stylesheet" href="style.css">
+  <script src="qrcode.min.js"></script>
   <script src="jsqr.min.js"></script>
   <style>
     html, body {
@@ -401,178 +402,56 @@
       white-space: nowrap;
     }
 
-    .pin-box {
+
+
+    /* Server Host Config Row (Borderless, Minimal) */
+    .server-config-box {
       width: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: var(--color-surface-1);
-      border-radius: 8px;
-      padding: 6px 6px 6px 14px;
-      margin-top: 10px;
-      box-sizing: border-box;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: none;
     }
 
-    .pin-display {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .pin-label {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.8px;
-      color: var(--color-ink-muted);
-      text-transform: uppercase;
-    }
-
-    .pin-value {
-      font-family: var(--font-mono);
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: 4px;
-      color: var(--color-ink);
-    }
-
-    /* --------------------------------------------------------------------------
-       PIN Authentication Modal (Phone Lock Screen, Borderless, Icon First)
-       -------------------------------------------------------------------------- */
-    .pin-auth-panel {
-      max-width: 310px;
-      padding: 32px 24px 28px 24px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      background: var(--color-canvas);
-      border-radius: 24px;
-      border: none;
-      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.16);
-    }
-
-    .pin-auth-head {
-      margin-bottom: 24px;
-      color: var(--color-ink);
-    }
-
-    .pin-input-row {
-      width: 100%;
-      max-width: 250px;
+    .server-config-row {
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-bottom: 24px;
+      width: 100%;
+      background: var(--color-surface-1);
+      border-radius: 12px;
+      padding: 4px 6px 4px 12px;
+      box-sizing: border-box;
     }
 
-    .pin-text-input {
+    .server-url-input {
       flex: 1;
-      height: 48px;
-      background: var(--color-surface-1);
+      height: 38px;
+      background: transparent;
       border: none;
       outline: none;
-      border-radius: 12px;
-      padding: 0 12px;
       font-family: var(--font-mono);
-      font-size: 20px;
-      font-weight: 700;
-      letter-spacing: 6px;
-      text-align: center;
+      font-size: 13px;
       color: var(--color-ink);
       box-sizing: border-box;
-      transition: background-color 0.12s ease;
     }
 
-    .pin-text-input:focus {
-      background: var(--color-surface-2);
-    }
-
-    .pin-submit-btn {
-      width: 48px;
-      height: 48px;
-      border-radius: 12px;
+    .server-save-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
       background: var(--color-ink);
       color: #ffffff;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
       flex-shrink: 0;
-      border: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: background-color 0.12s ease, transform 0.08s ease;
+      transition: opacity 0.1s ease, transform 0.08s ease;
     }
 
-    .pin-submit-btn:hover {
-      background: #2a2a2a;
-    }
-
-    .pin-submit-btn:active {
+    .server-save-btn:active {
       transform: scale(0.92);
-      background: #000000;
-    }
-
-    .pin-input-row.shake {
-      animation: pinShake 0.4s ease-in-out;
-    }
-
-    @keyframes pinShake {
-      0%, 100% { transform: translateX(0); }
-      20%, 60% { transform: translateX(-8px); }
-      40%, 80% { transform: translateX(8px); }
-    }
-
-    .pin-keypad {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 14px 18px;
-      width: 100%;
-      max-width: 250px;
-      justify-items: center;
-    }
-
-    .pin-key {
-      width: 62px;
-      height: 62px;
-      border-radius: 50%;
-      background: var(--color-surface-1);
-      border: none;
-      color: var(--color-ink);
-      font-family: var(--font-family);
-      font-size: 24px;
-      font-weight: 500;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      user-select: none;
-      -webkit-user-select: none;
-      touch-action: manipulation;
-      transition: background-color 0.1s ease, transform 0.08s ease;
-    }
-
-    .pin-key:hover {
-      background: var(--color-surface-2);
-    }
-
-    .pin-key:active {
-      transform: scale(0.92);
-      background: #d4d4d4;
-    }
-
-    .pin-key-dummy {
-      width: 62px;
-      height: 62px;
-    }
-
-    .pin-key-back {
-      background: transparent;
-    }
-
-    .pin-key-back:hover {
-      background: var(--color-surface-1);
-    }
-
-    .pin-key-back:active {
-      background: var(--color-surface-2);
     }
 
     /* Camera Scanner Viewport */
@@ -1269,19 +1148,19 @@
           </button>
         </div>
 
-        <!-- 4-Digit Pairing PIN Code Display -->
-        <div class="pin-box">
-          <div class="pin-display">
-            <span class="pin-label">PIN</span>
-            <span id="pinDisplayCode" class="pin-value">----</span>
-          </div>
-          <button type="button" id="btnRegeneratePin" class="btn-icon" style="width: 34px; height: 34px;" aria-label="Regenerate PIN" title="Regenerate PIN">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="23 4 23 10 17 10"></polyline>
-              <polyline points="1 20 1 14 7 14"></polyline>
-              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        <!-- Server Host Config (Cloudflare Pages / Custom Tunnel Target) -->
+        <div class="server-config-box" id="serverConfigBox">
+          <div class="server-config-row">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.6; flex-shrink: 0;">
+              <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
             </svg>
-          </button>
+            <input type="url" id="inputServerUrl" class="server-url-input" placeholder="https://xxx.trycloudflare.com" spellcheck="false" autocomplete="off">
+            <button type="button" id="btnSaveServerUrl" class="server-save-btn" aria-label="Connect">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1458,49 +1337,7 @@
     </div>
   </div>
 
-  <!-- 7. PIN Authentication Modal (Borderless, Minimal Keypad) -->
-  <div id="pinAuthModal" class="modal-backdrop">
-    <div class="modal-panel pin-auth-panel">
-      <div class="pin-auth-head">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-        </svg>
-      </div>
 
-      <!-- PIN Input Textbox Row (Borderless, Center Aligned, Icon First Submit) -->
-      <div class="pin-input-row" id="pinInputRow">
-        <input type="text" id="pinTextInput" class="pin-text-input" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="••••" autocomplete="one-time-code" spellcheck="false">
-        <button type="button" id="btnPinSubmit" class="btn-icon pin-submit-btn" aria-label="Confirm">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="20 6 9 17 4 12"></polyline>
-          </svg>
-        </button>
-      </div>
-
-      <!-- Numeric Keypad (Borderless Flat Touch Buttons) -->
-      <div class="pin-keypad" id="pinKeypad">
-        <button type="button" class="pin-key" data-digit="1">1</button>
-        <button type="button" class="pin-key" data-digit="2">2</button>
-        <button type="button" class="pin-key" data-digit="3">3</button>
-        <button type="button" class="pin-key" data-digit="4">4</button>
-        <button type="button" class="pin-key" data-digit="5">5</button>
-        <button type="button" class="pin-key" data-digit="6">6</button>
-        <button type="button" class="pin-key" data-digit="7">7</button>
-        <button type="button" class="pin-key" data-digit="8">8</button>
-        <button type="button" class="pin-key" data-digit="9">9</button>
-        <div class="pin-key-dummy"></div>
-        <button type="button" class="pin-key" data-digit="0">0</button>
-        <button type="button" class="pin-key pin-key-back" id="btnPinDelete" aria-label="Delete">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"></path>
-            <line x1="18" y1="9" x2="12" y2="15"></line>
-            <line x1="12" y1="9" x2="18" y2="15"></line>
-          </svg>
-        </button>
-      </div>
-    </div>
-  </div>
 
   <script>
     // --------------------------------------------------------------------------
@@ -2041,8 +1878,7 @@
           if (window.location.hostname.endsWith('.pages.dev')) {
             try {
               const u = new URL(detectedUrl);
-              const pinVal = u.searchParams.get('pin') || '';
-              const target = `${window.location.origin}${window.location.pathname}?server=${encodeURIComponent(u.origin)}${pinVal ? '&pin=' + pinVal : ''}`;
+              const target = `${window.location.origin}${window.location.pathname}?server=${encodeURIComponent(u.origin)}`;
               window.location.href = target;
               return;
             } catch (e) {}
@@ -2098,7 +1934,8 @@
           return {
             httpOrigin: u.origin,
             wsUrl: wsUrl,
-            host: u.host
+            host: u.host,
+            hasCustomServer: true
           };
         } catch (e) {}
       }
@@ -2107,12 +1944,13 @@
       return {
         httpOrigin: window.location.origin,
         wsUrl: `${isHttps ? 'wss:' : 'ws:'}//${window.location.host}`,
-        host: window.location.host
+        host: window.location.host,
+        hasCustomServer: false
       };
     }
 
     // --------------------------------------------------------------------------
-    // Server Info & QR
+    // Server Info & QR (クライアント側動的生成 & Cloudflare Pages対応)
     // --------------------------------------------------------------------------
     let serverInfo = null;
     let activeQrTab = 'tunnel';
@@ -2122,44 +1960,109 @@
     const qrImage = document.getElementById('qrImage');
     const remoteUrlDisplay = document.getElementById('remoteUrlDisplay');
     const copyUrlBtn = document.getElementById('copyUrlBtn');
-    const pinDisplayCode = document.getElementById('pinDisplayCode');
-    const btnRegeneratePin = document.getElementById('btnRegeneratePin');
+    const inputServerUrl = document.getElementById('inputServerUrl');
+    const btnSaveServerUrl = document.getElementById('btnSaveServerUrl');
+
+    async function renderQrCode(targetUrl) {
+      if (!targetUrl) return;
+      if (remoteUrlDisplay) remoteUrlDisplay.textContent = targetUrl;
+      try {
+        if (window.QRCodeLib && window.QRCodeLib.toDataURL) {
+          const dataUrl = await window.QRCodeLib.toDataURL(targetUrl, {
+            margin: 2,
+            width: 260,
+            color: { dark: '#181818', light: '#ffffff' }
+          });
+          if (qrImage) qrImage.src = dataUrl;
+          return;
+        }
+      } catch (e) {}
+
+      // フォールバック
+      if (serverInfo) {
+        if (activeQrTab === 'tunnel' && serverInfo.tunnelQrDataUrl) {
+          if (qrImage) qrImage.src = serverInfo.tunnelQrDataUrl;
+        } else if (serverInfo.localQrDataUrl) {
+          if (qrImage) qrImage.src = serverInfo.localQrDataUrl;
+        }
+      }
+    }
+
+    async function updateQrDisplay() {
+      const cfg = getTargetServerConfig();
+      const isPagesDev = window.location.hostname.endsWith('.pages.dev');
+
+      let targetUrl = '';
+
+      if (activeQrTab === 'tunnel') {
+        if (serverInfo && serverInfo.tunnelRemoteUrl) {
+          if (isPagesDev) {
+            targetUrl = `${window.location.origin}${window.location.pathname}?server=${encodeURIComponent(serverInfo.tunnelRemoteUrl)}`;
+          } else {
+            targetUrl = serverInfo.tunnelRemoteUrl;
+          }
+        } else if (cfg.hasCustomServer) {
+          targetUrl = isPagesDev
+            ? `${window.location.origin}${window.location.pathname}?server=${encodeURIComponent(cfg.httpOrigin)}`
+            : cfg.httpOrigin;
+        } else {
+          // サーバー情報が未接続でも、現在のPages URLで即時QRコードを描画（真っ白防止）
+          targetUrl = `${window.location.origin}${window.location.pathname}`;
+        }
+      } else {
+        if (serverInfo && serverInfo.localRemoteUrl) {
+          targetUrl = serverInfo.localRemoteUrl;
+        } else {
+          targetUrl = `${window.location.origin}${window.location.pathname}`;
+        }
+      }
+
+      await renderQrCode(targetUrl);
+    }
 
     async function loadServerInfo() {
       const cfg = getTargetServerConfig();
+
+      if (inputServerUrl && cfg.hasCustomServer) {
+        inputServerUrl.value = cfg.httpOrigin;
+      }
+
+      // 初期表示で即座にQRコードをクライアント描画（空白になるのを防止）
+      await updateQrDisplay();
+
+      // バックエンドAPIから情報取得（存在する場合）
       try {
         const res = await fetch(`${cfg.httpOrigin}/api/info`);
-        serverInfo = await res.json();
-        updateQrDisplay();
-        if (pinDisplayCode && serverInfo.pin) {
-          pinDisplayCode.textContent = serverInfo.pin;
+        if (res.ok) {
+          serverInfo = await res.json();
+          await updateQrDisplay();
         }
       } catch (err) {}
     }
 
-    if (btnRegeneratePin) {
-      btnRegeneratePin.addEventListener('click', async () => {
-        try {
-          const cfg = getTargetServerConfig();
-          const res = await fetch(`${cfg.httpOrigin}/api/regenerate-pin`, { method: 'POST' });
-          const data = await res.json();
-          if (data.pin && pinDisplayCode) {
-            pinDisplayCode.textContent = data.pin;
-            if (navigator.vibrate) try { navigator.vibrate(25); } catch (e) {}
+    if (btnSaveServerUrl && inputServerUrl) {
+      btnSaveServerUrl.addEventListener('click', () => {
+        let val = inputServerUrl.value.trim();
+        if (val) {
+          if (!val.startsWith('http://') && !val.startsWith('https://')) {
+            val = `https://${val}`;
           }
-        } catch (e) {}
+          try {
+            const u = new URL(val);
+            localStorage.setItem('wss_server_target', u.origin);
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.set('server', u.origin);
+            window.location.href = newUrl.toString();
+          } catch (e) {}
+        }
       });
-    }
 
-    function updateQrDisplay() {
-      if (!serverInfo) return;
-      if (activeQrTab === 'tunnel' && serverInfo.hasTunnel) {
-        qrImage.src = serverInfo.tunnelQrDataUrl;
-        remoteUrlDisplay.textContent = serverInfo.tunnelRemoteUrl;
-      } else {
-        qrImage.src = serverInfo.localQrDataUrl;
-        remoteUrlDisplay.textContent = serverInfo.localRemoteUrl;
-      }
+      inputServerUrl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          btnSaveServerUrl.click();
+        }
+      });
     }
 
     tabTunnel.addEventListener('click', () => {
@@ -2186,105 +2089,7 @@
     });
 
     // --------------------------------------------------------------------------
-    // PIN Authentication Logic (テンキー & 4桁認証)
-    // --------------------------------------------------------------------------
-    const pinAuthModal = document.getElementById('pinAuthModal');
-    const pinInputRow = document.getElementById('pinInputRow');
-    const pinTextInput = document.getElementById('pinTextInput');
-    const btnPinSubmit = document.getElementById('btnPinSubmit');
-    const pinKeypad = document.getElementById('pinKeypad');
-    const btnPinDelete = document.getElementById('btnPinDelete');
-
-    let isAuthenticated = false;
-
-    function openPinModal() {
-      if (isAuthenticated) return;
-      if (pinAuthModal) {
-        pinAuthModal.classList.add('active');
-        if (pinTextInput) {
-          setTimeout(() => pinTextInput.focus(), 120);
-        }
-      }
-    }
-
-    function closePinModal() {
-      isAuthenticated = true;
-      if (pinAuthModal) pinAuthModal.classList.remove('active');
-    }
-
-    function submitPin(pin) {
-      const cleanPin = String(pin || '').trim();
-      if (cleanPin.length === 4) {
-        sendWsPayload({ type: 'auth', pin: cleanPin });
-        localStorage.setItem('wss_pin', cleanPin);
-      }
-    }
-
-    function triggerPinShake() {
-      if (!pinInputRow) return;
-      pinInputRow.classList.add('shake');
-      if (navigator.vibrate) try { navigator.vibrate([40, 60, 40]); } catch (e) {}
-      setTimeout(() => {
-        pinInputRow.classList.remove('shake');
-        if (pinTextInput) {
-          pinTextInput.value = '';
-          pinTextInput.focus();
-        }
-      }, 400);
-    }
-
-    // テキストボックス直接入力 & ペースト対応
-    if (pinTextInput) {
-      pinTextInput.addEventListener('input', () => {
-        // 半角数字のみ抽出し最大4桁
-        pinTextInput.value = pinTextInput.value.replace(/[^0-9]/g, '').slice(0, 4);
-        if (pinTextInput.value.length === 4) {
-          submitPin(pinTextInput.value);
-        }
-      });
-
-      pinTextInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          submitPin(pinTextInput.value);
-        }
-      });
-    }
-
-    // 確定（送信）アイコンボタン
-    if (btnPinSubmit) {
-      btnPinSubmit.addEventListener('click', () => {
-        if (pinTextInput) submitPin(pinTextInput.value);
-      });
-    }
-
-    // 画面テンキー連動（タップでもテキストボックスに入力・反映）
-    if (pinKeypad && pinTextInput) {
-      pinKeypad.querySelectorAll('.pin-key[data-digit]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          if (pinTextInput.value.length < 4) {
-            pinTextInput.value = (pinTextInput.value + btn.getAttribute('data-digit')).slice(0, 4);
-            if (navigator.vibrate) try { navigator.vibrate(15); } catch (e) {}
-            if (pinTextInput.value.length === 4) {
-              submitPin(pinTextInput.value);
-            }
-          }
-        });
-      });
-    }
-
-    // 画面テンキーの一文字削除
-    if (btnPinDelete && pinTextInput) {
-      btnPinDelete.addEventListener('click', () => {
-        if (pinTextInput.value.length > 0) {
-          pinTextInput.value = pinTextInput.value.slice(0, -1);
-          if (navigator.vibrate) try { navigator.vibrate(15); } catch (e) {}
-        }
-      });
-    }
-
-    // --------------------------------------------------------------------------
-    // WebSocket 接続
+    // WebSocket 接続 (PINコード認証なし・即時操作可能)
     // --------------------------------------------------------------------------
     let socket = null;
     const menuWsDot = document.getElementById('menuWsDot');
@@ -2297,33 +2102,16 @@
       socket.addEventListener('open', () => {
         updateWsIndicator(true);
         const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlPin = urlParams.get('pin');
-        const savedPin = urlPin || localStorage.getItem('wss_pin') || '';
-        if (urlPin) localStorage.setItem('wss_pin', urlPin);
 
         socket.send(JSON.stringify({
           type: 'register',
-          clientType: isLocalHost ? 'pc' : 'mobile',
-          pin: savedPin
+          clientType: isLocalHost ? 'pc' : 'mobile'
         }));
         requestWakeLock();
       });
 
       socket.addEventListener('message', (event) => {
-        try {
-          const msg = JSON.parse(event.data);
-          if (msg.type === 'auth_required' || msg.type === 'auth_fail') {
-            isAuthenticated = false;
-            openPinModal();
-            if (msg.type === 'auth_fail') {
-              localStorage.removeItem('wss_pin');
-              triggerPinShake();
-            }
-          } else if (msg.type === 'auth_success') {
-            closePinModal();
-          }
-        } catch (e) {}
+        // 常時認証済みのため認証要求チェックは不要
       });
 
       socket.addEventListener('close', () => {
