@@ -1193,23 +1193,6 @@
         </button>
       </div>
 
-      <!-- Cloud / Wi-Fi Icon Tabs -->
-      <div class="tab-bar">
-        <button type="button" id="tabTunnel" class="tab-item active" aria-label="Tunnel">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
-          </svg>
-        </button>
-        <button type="button" id="tabLocal" class="tab-item" aria-label="Local">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
-            <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
-            <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
-            <line x1="12" y1="20" x2="12.01" y2="20"></line>
-          </svg>
-        </button>
-      </div>
-
       <div class="qr-box">
         <img id="qrImage" class="qr-img" src="" alt="QR">
         <div class="url-row">
@@ -2213,19 +2196,10 @@
       });
     }
 
-    tabTunnel.addEventListener('click', () => {
-      activeQrTab = 'tunnel';
-      tabTunnel.classList.add('active');
-      tabLocal.classList.remove('active');
-      updateQrDisplay();
-    });
-
-    tabLocal.addEventListener('click', () => {
-      activeQrTab = 'local';
-      tabLocal.classList.add('active');
-      tabTunnel.classList.remove('active');
-      updateQrDisplay();
-    });
+    const tabTunnel = document.getElementById('tabTunnel');
+    const tabLocal = document.getElementById('tabLocal');
+    if (tabTunnel) tabTunnel.addEventListener('click', () => { activeQrTab = 'tunnel'; updateQrDisplay(); });
+    if (tabLocal) tabLocal.addEventListener('click', () => { activeQrTab = 'local'; updateQrDisplay(); });
 
     const btnRefreshTunnel = document.getElementById('btnRefreshTunnel');
     if (btnRefreshTunnel) {
@@ -2810,8 +2784,6 @@
           console.log('[WebRTC Client] ホストとP2P接続確立！');
           updateWsIndicator(true);
           if (navigator.vibrate) try { navigator.vibrate([60, 40, 60]); } catch(e) {}
-          // スマホ側のみ、直感的に操作できるようスライド画面へ切り替え
-          switchView('viewSlideSwitch');
         });
 
         conn.on('data', (data) => {
