@@ -167,28 +167,24 @@
     .connection-pill[data-route="cloud"] .route-wifi { display: none; }
     .connection-pill[data-route="cloud"] .route-cloud { display: inline-flex; }
 
-    /* 接続完了時のおしゃれなフローティングトーストアニメーション */
+    /* 接続トースト (スマホとPCのワイヤー接続アニメーション) */
     .conn-toast {
       position: fixed;
       top: 18px;
       left: 50%;
-      transform: translateX(-50%) translateY(-50px) scale(0.9);
+      transform: translateX(-50%) translateY(-65px) scale(0.9);
       background: #111111;
       color: #ffffff;
-      padding: 9px 18px;
+      padding: 10px 20px;
       border-radius: 9999px;
       z-index: 999999;
       pointer-events: none;
       opacity: 0;
       transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease;
-      box-shadow: 0 10px 32px rgba(0, 0, 0, 0.16);
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.22);
       display: flex;
       align-items: center;
-      gap: 10px;
-      font-family: var(--font-family);
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: 0.6px;
+      gap: 12px;
       border: none;
     }
 
@@ -197,18 +193,97 @@
       opacity: 1;
     }
 
-    .toast-icon {
+    .toast-node {
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      color: #ffffff;
+      transition: transform 0.3s ease;
+    }
+
+    .toast-wire-area {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* SVGワイヤー線アニメーション (左から右へ伸びる) */
+    .wire-line {
+      stroke: #ffffff;
+      stroke-width: 2.2;
+      stroke-linecap: round;
+      stroke-dasharray: 80;
+      stroke-dashoffset: 80;
+      transition: stroke-dashoffset 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .conn-toast.show .wire-line {
+      stroke-dashoffset: 0;
+    }
+
+    .wire-pulse-dot {
+      fill: #34c759;
+      opacity: 0;
+      transform: scale(0);
+      transform-origin: 35px 10px;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0.35s;
+    }
+
+    .conn-toast.show .wire-pulse-dot {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    /* ローカル直接接続モード (スマホ ─── PC) */
+    .conn-toast[data-mode="wifi"] .wire-direct {
+      display: flex;
+      align-items: center;
+    }
+    .conn-toast[data-mode="wifi"] .wire-cloud-wrap {
+      display: none;
+    }
+
+    /* クラウド中継接続モード (スマホ ─── 雲 ─── PC) */
+    .conn-toast[data-mode="cloud"] .wire-direct {
+      display: none;
+    }
+    .conn-toast[data-mode="cloud"] .wire-cloud-wrap {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .toast-cloud-node {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #8e8e93;
+      transform: scale(0.8);
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.15s, color 0.4s ease 0.25s;
+    }
+
+    .conn-toast.show .toast-cloud-node {
+      transform: scale(1);
       color: #ffffff;
     }
 
-    .toast-check {
+    .toast-badge-check {
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #34c759;
       color: #ffffff;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0.45s;
+    }
+
+    .conn-toast.show .toast-badge-check {
+      opacity: 1;
+      transform: scale(1);
     }
 
     /* --------------------------------------------------------------------------
@@ -1022,18 +1097,57 @@
   <div id="flashOverlay" class="flash-overlay"></div>
   
   <!-- Connection Toast (Aesthetic Floating Pill) -->
-  <div id="connectionToast" class="conn-toast" aria-live="polite">
-    <span class="toast-icon" id="toastIcon">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+  <!-- Connection Toast (Phone to PC Wire Link Animation) -->
+  <div id="connectionToast" class="conn-toast" data-mode="wifi" aria-live="polite">
+    <!-- Phone Node -->
+    <div class="toast-node toast-phone" title="Smartphone">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+        <line x1="12" y1="18" x2="12.01" y2="18"></line>
       </svg>
-    </span>
-    <span id="toastText">CONNECTED</span>
-    <span class="toast-check">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    </div>
+
+    <!-- Wire Animation Area -->
+    <div class="toast-wire-area" id="toastWireArea">
+      <!-- Direct Wire (Local Wi-Fi) -->
+      <div class="wire-direct">
+        <svg class="wire-svg" viewBox="0 0 70 20" width="70" height="20">
+          <line x1="0" y1="10" x2="70" y2="10" class="wire-line wire-line-direct"></line>
+          <circle cx="35" cy="10" r="3" class="wire-pulse-dot"></circle>
+        </svg>
+      </div>
+
+      <!-- Via Cloud Wire (Internet / Tunnel) -->
+      <div class="wire-cloud-wrap">
+        <svg class="wire-svg" viewBox="0 0 28 20" width="28" height="20">
+          <line x1="0" y1="10" x2="28" y2="10" class="wire-line"></line>
+        </svg>
+        <div class="toast-cloud-node" title="Cloud Relay">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+          </svg>
+        </div>
+        <svg class="wire-svg" viewBox="0 0 28 20" width="28" height="20">
+          <line x1="0" y1="10" x2="28" y2="10" class="wire-line"></line>
+        </svg>
+      </div>
+    </div>
+
+    <!-- PC Node -->
+    <div class="toast-node toast-pc" title="Computer">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+        <line x1="8" y1="21" x2="16" y2="21"></line>
+        <line x1="12" y1="17" x2="12" y2="21"></line>
+      </svg>
+    </div>
+
+    <!-- Verified Check -->
+    <div class="toast-badge-check">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="20 6 9 17 4 12"></polyline>
       </svg>
-    </span>
+    </div>
   </div>
 
   <!-- 1. Menu View -->
@@ -2469,48 +2583,87 @@
 
     let lastConnectedState = false;
     let toastTimeout = null;
+    let currentRouteType = 'cloud'; // 'wifi' または 'cloud'
 
-    function getConnectionRouteType() {
+    // WebRTC 内部接続統計 (getStats) による高精度なローカルWi-Fi直接通信のリアルタイム自動判定
+    async function detectActualRouteType() {
+      // 1. ローカルホストまたはローカルIPアクセス時
       const host = window.location.hostname;
       if (host === 'localhost' || host === '127.0.0.1' || /^192\.168\./.test(host) || /^10\./.test(host)) {
         return 'wifi';
       }
+
+      // 2. WebRTC P2P ICE Candidate Pair の検査 (スマホとPCが同一Wi-Fiで直接パケット交換しているか)
+      const activeConn = (typeof peerConn !== 'undefined' && peerConn && peerConn.peerConnection)
+        ? peerConn.peerConnection
+        : ((typeof peerConnections !== 'undefined' && peerConnections && peerConnections.length > 0)
+          ? peerConnections[0].peerConnection
+          : null);
+
+      if (activeConn && activeConn.getStats) {
+        try {
+          const stats = await activeConn.getStats();
+          let isDirectLocal = false;
+          stats.forEach(report => {
+            if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+              const localCand = stats.get(report.localCandidateId);
+              const remoteCand = stats.get(report.remoteCandidateId);
+              if (localCand && remoteCand) {
+                // 両方の candidateType が 'host' なら同一LAN直接通信
+                if (localCand.candidateType === 'host' && remoteCand.candidateType === 'host') {
+                  isDirectLocal = true;
+                }
+                // プライベートIP同士（192.168.x.x, 10.x.x.x, 172.16-31.x.x）の接続なら同一Wi-Fi
+                const isPriv = (ip) => /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(ip || '');
+                if (isPriv(localCand.address || localCand.ip) && isPriv(remoteCand.address || remoteCand.ip)) {
+                  isDirectLocal = true;
+                }
+              }
+            }
+          });
+          if (isDirectLocal) return 'wifi';
+        } catch (e) {}
+      }
+
+      // 3. WebSocket 接続先判定
+      if (socket && socket.readyState === WebSocket.OPEN && socket.url) {
+        if (/127\.0\.0\.1|localhost|192\.168\.|10\./.test(socket.url)) {
+          return 'wifi';
+        }
+      }
+
       return 'cloud';
     }
 
     function triggerConnectionAnimation(routeType) {
       const toast = document.getElementById('connectionToast');
-      const toastText = document.getElementById('toastText');
-      const toastIcon = document.getElementById('toastIcon');
-
       if (!toast) return;
 
-      const isWifi = routeType === 'wifi';
-      if (toastText) {
-        toastText.textContent = isWifi ? 'CONNECTED VIA WI-FI' : 'CONNECTED VIA CLOUD';
-      }
-      if (toastIcon) {
-        toastIcon.innerHTML = isWifi 
-          ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"></path><path d="M1.42 9a16 16 0 0 1 21.16 0"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg>`
-          : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>`;
-      }
+      toast.setAttribute('data-mode', routeType);
 
+      // ワイヤーアニメーションのリセット & 再発火
+      toast.classList.remove('show');
+      void toast.offsetWidth; // リフロー強制
       toast.classList.add('show');
-      if (navigator.vibrate) try { navigator.vibrate([40, 60, 40]); } catch (e) {}
+
+      if (navigator.vibrate) try { navigator.vibrate([40, 70, 45]); } catch (e) {}
 
       clearTimeout(toastTimeout);
       toastTimeout = setTimeout(() => {
         toast.classList.remove('show');
-      }, 2400);
+      }, 2600);
     }
 
-    function updateWsIndicator(isConnected) {
+    async function updateWsIndicator(isConnected) {
       const isPeerActive = (typeof isPeerHost !== 'undefined' && isPeerHost && peerConnections && peerConnections.length > 0) || 
                            (typeof peerConn !== 'undefined' && peerConn && peerConn.open);
       const isWsActive = socket && socket.readyState === WebSocket.OPEN;
       const connected = (typeof isConnected === 'boolean' && isConnected) || isPeerActive || isWsActive;
 
-      const routeType = getConnectionRouteType();
+      if (connected) {
+        currentRouteType = await detectActualRouteType();
+      }
+
       const pills = [
         document.getElementById('menuConnPill'),
         document.getElementById('remoteConnPill'),
@@ -2519,7 +2672,7 @@
 
       pills.forEach(pill => {
         if (!pill) return;
-        pill.setAttribute('data-route', routeType);
+        pill.setAttribute('data-route', currentRouteType);
         if (connected) {
           pill.classList.remove('disconnected');
           pill.classList.add('connected');
@@ -2531,7 +2684,16 @@
 
       // 未接続から接続へ変化した瞬間におしゃれなアニメーションを1回発火
       if (connected && !lastConnectedState) {
-        triggerConnectionAnimation(routeType);
+        triggerConnectionAnimation(currentRouteType);
+        // ICEペアが完全確立する500ms後に再確認して表示を自動同期
+        setTimeout(async () => {
+          const freshRoute = await detectActualRouteType();
+          if (freshRoute !== currentRouteType) {
+            currentRouteType = freshRoute;
+            pills.forEach(p => p && p.setAttribute('data-route', currentRouteType));
+            toast.setAttribute('data-mode', currentRouteType);
+          }
+        }, 500);
       }
       lastConnectedState = connected;
 
