@@ -3,7 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Slide Controller</title>
+  <title>ToolBox</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-title" content="ToolBox">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="stylesheet" href="style.css">
   <script src="qrcode.min.js"></script>
   <script src="jsqr.min.js"></script>
@@ -227,10 +233,11 @@
     /* SVGワイヤー線アニメーション (PCからスマホへゆっくり優雅に伸びる) */
     .wire-line {
       stroke: #ffffff;
-      stroke-width: 3;
+      stroke-width: 3.2;
       stroke-linecap: round;
       stroke-dasharray: 120;
       stroke-dashoffset: 120;
+      filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.85));
       transition: stroke-dashoffset 1.35s cubic-bezier(0.2, 0.8, 0.25, 1);
     }
 
@@ -238,70 +245,9 @@
       stroke-dashoffset: 0;
     }
 
-    /* クラウド中継: PC -> 雲 (0s〜0.65s) */
-    .wire-line.wire-line-left {
-      stroke-dasharray: 40;
-      stroke-dashoffset: 40;
-      transition: stroke-dashoffset 0.65s cubic-bezier(0.2, 0.8, 0.25, 1);
-    }
-    .conn-toast.show .wire-line.wire-line-left {
-      stroke-dashoffset: 0;
-    }
-
-    /* クラウド中継: 雲 -> スマホ (0.7s〜1.35s) */
-    .wire-line.wire-line-right {
-      stroke-dasharray: 40;
-      stroke-dashoffset: 40;
-      transition: stroke-dashoffset 0.65s cubic-bezier(0.2, 0.8, 0.25, 1) 0.7s;
-    }
-    .conn-toast.show .wire-line.wire-line-right {
-      stroke-dashoffset: 0;
-    }
-
-    /* ローカル直結: PC -> スマホ (0s〜1.35s ゆっくりスーッと光のラインが伸びる) */
-    .wire-line.wire-line-direct {
-      stroke: #ffffff;
-      stroke-width: 3.2;
-      filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.85));
-      transition: stroke-dashoffset 1.35s cubic-bezier(0.2, 0.8, 0.25, 1);
-    }
-
-    /* ローカル直接接続モード (PC ────── スマホ) */
-    .conn-toast[data-mode="wifi"] .wire-direct {
+    .wire-direct {
       display: flex;
       align-items: center;
-    }
-    .conn-toast[data-mode="wifi"] .wire-cloud-wrap {
-      display: none !important;
-    }
-
-    /* クラウド中継接続モード (PC ── 雲 ── スマホ) */
-    .conn-toast[data-mode="cloud"] .wire-direct {
-      display: none !important;
-    }
-    .conn-toast[data-mode="cloud"] .wire-cloud-wrap {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .toast-cloud-node {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 44px;
-      height: 44px;
-      border-radius: 12px;
-      background: rgba(255, 255, 255, 0.08);
-      color: #8e8e93;
-      transform: scale(0.85);
-      transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.55s, color 0.4s ease 0.6s, background-color 0.4s ease 0.6s;
-    }
-
-    .conn-toast.show .toast-cloud-node {
-      transform: scale(1);
-      color: #ffffff;
-      background: rgba(255, 255, 255, 0.16);
     }
 
     /* ラインがスマホに届いた瞬間(1.35s後)のリアクション */
@@ -1168,27 +1114,11 @@
         </svg>
       </div>
 
-      <!-- Wire Animation Area -->
+      <!-- Wire Animation Area (PC -> Smartphone Direct) -->
       <div class="toast-wire-area" id="toastWireArea">
-        <!-- Direct Wire (Local Wi-Fi) -->
         <div class="wire-direct">
           <svg class="wire-svg" viewBox="0 0 100 24" width="100" height="24">
             <line x1="0" y1="12" x2="100" y2="12" class="wire-line wire-line-direct"></line>
-          </svg>
-        </div>
-
-        <!-- Via Cloud Wire (Internet / Relay) -->
-        <div class="wire-cloud-wrap">
-          <svg class="wire-svg" viewBox="0 0 34 24" width="34" height="24">
-            <line x1="0" y1="12" x2="34" y2="12" class="wire-line wire-line-left"></line>
-          </svg>
-          <div class="toast-cloud-node" title="Cloud Relay">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
-            </svg>
-          </div>
-          <svg class="wire-svg" viewBox="0 0 34 24" width="34" height="24">
-            <line x1="0" y1="12" x2="34" y2="12" class="wire-line wire-line-right"></line>
           </svg>
         </div>
       </div>
@@ -1204,7 +1134,7 @@
 
     <!-- Label & Check Row -->
     <div class="toast-label-row">
-      <span id="toastModeLabel">LOCAL DIRECT LINK</span>
+      <span id="toastModeLabel">DEVICE LINKED</span>
       <div class="toast-badge-check">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="20 6 9 17 4 12"></polyline>
@@ -2737,14 +2667,14 @@
     let lastPairingAnimTime = 0;
     const pageLoadTimestamp = Date.now();
 
-    function triggerConnectionAnimation(routeType) {
+    function triggerConnectionAnimation() {
       const toast = document.getElementById('connectionToast');
       if (!toast) return;
 
-      toast.setAttribute('data-mode', routeType);
+      toast.setAttribute('data-mode', 'wifi');
       const label = document.getElementById('toastModeLabel');
       if (label) {
-        label.textContent = (routeType === 'wifi') ? 'LOCAL DIRECT LINK' : 'CLOUD RELAY LINK';
+        label.textContent = 'DEVICE LINKED';
       }
 
       // ワイヤーアニメーションのリセット & 再発火 (PCからスマホへゆっくり優雅に伸びる)
@@ -2761,39 +2691,26 @@
     }
 
     // スマホとPCのペアリングが成立した瞬間のみに発火させる（ページ初期読込時の誤発火を完全防止）
-    async function triggerPairingAnimation(presetRoute) {
+    function triggerPairingAnimation() {
       const now = Date.now();
       // ページ読み込み後1.0秒以内の初期化ガード、または直近3.5秒以内の連続発火を抑制
       if (now - pageLoadTimestamp < 1000) return;
       if (now - lastPairingAnimTime < 3500) return;
       lastPairingAnimTime = now;
 
-      // 確定ルートがあればそれを即座に使用、なければ最新判定を実行
-      const resolved = presetRoute || await detectActualRouteType();
-      currentRouteType = resolved;
-
       const pills = [
         document.getElementById('menuConnPill'),
         document.getElementById('remoteConnPill'),
         document.getElementById('trackpadConnPill')
       ];
-      pills.forEach(p => p && p.setAttribute('data-route', currentRouteType));
-      triggerConnectionAnimation(currentRouteType);
+      pills.forEach(p => {
+        if (!p) return;
+        p.setAttribute('data-route', 'wifi');
+        p.classList.remove('disconnected');
+        p.classList.add('connected');
+      });
 
-      // さらにICEペアが完全確立する700ms後にも再確認して表示を同期
-      setTimeout(async () => {
-        const freshRoute = await detectActualRouteType();
-        if (freshRoute !== currentRouteType) {
-          currentRouteType = freshRoute;
-          pills.forEach(p => p && p.setAttribute('data-route', currentRouteType));
-          const toast = document.getElementById('connectionToast');
-          if (toast) {
-            toast.setAttribute('data-mode', currentRouteType);
-            const label = document.getElementById('toastModeLabel');
-            if (label) label.textContent = (currentRouteType === 'wifi') ? 'LOCAL DIRECT LINK' : 'CLOUD RELAY LINK';
-          }
-        }
-      }, 700);
+      triggerConnectionAnimation();
     }
 
     async function updateWsIndicator(isConnected) {
@@ -3262,18 +3179,14 @@
       peer.on('connection', (conn) => {
         console.log('[WebRTC Host] スマホリモコンが接続されました');
         peerConnections.push(conn);
-        conn.on('open', async () => {
+        conn.on('open', () => {
           updateWsIndicator(true);
-          const hostRoute = await detectActualRouteType();
-          const lanIp = (serverInfo && (serverInfo.primaryIp || serverInfo.localIp || serverInfo.ip)) ? (serverInfo.primaryIp || serverInfo.localIp || serverInfo.ip) : '';
           conn.send({ 
             type: 'sync_state', 
             slide: currentSlide, 
-            isRunning: isTimerRunning,
-            routeType: hostRoute,
-            hostLanIp: lanIp
+            isRunning: isTimerRunning
           });
-          triggerPairingAnimation(hostRoute);
+          triggerPairingAnimation();
         });
 
         conn.on('data', (data) => {
@@ -3305,35 +3218,20 @@
         const conn = peer.connect(targetHostId, { reliable: true });
         peerConn = conn;
 
-        let clientPairingTimer = null;
-
         conn.on('open', () => {
           console.log('[WebRTC Client] ホストとP2P接続確立！');
           updateWsIndicator(true);
+          triggerPairingAnimation();
           if (navigator.vibrate) try { navigator.vibrate([60, 40, 60]); } catch(e) {}
-
-          // ホストからの sync_state (確定ルート・LAN IP) 到着を少し待つ
-          clearTimeout(clientPairingTimer);
-          clientPairingTimer = setTimeout(async () => {
-            const fallbackRoute = await detectActualRouteType();
-            triggerPairingAnimation(fallbackRoute);
-          }, 450);
         });
 
-        conn.on('data', async (data) => {
+        conn.on('data', (data) => {
           if (data && data.type === 'sync_state') {
             if (data.slide) currentSlide = data.slide;
             if (typeof data.isRunning === 'boolean') {
               if (data.isRunning && !isTimerRunning) startTimer();
               else if (!data.isRunning && isTimerRunning) pauseTimer();
             }
-            if (data.hostLanIp) window.__hostLanIp = data.hostLanIp;
-            if (data.routeType) window.__syncedRouteType = data.routeType;
-
-            // ホストから同期データが届いたらタイマーを解除し、確定ルートで即時アニメーション発火！
-            clearTimeout(clientPairingTimer);
-            const resolved = await detectActualRouteType();
-            triggerPairingAnimation(resolved);
           }
         });
 
