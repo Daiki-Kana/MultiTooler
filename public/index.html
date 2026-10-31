@@ -1832,7 +1832,10 @@
     const btnRemoteQr = document.getElementById('btnRemoteQr');
     const connectCloseX = document.getElementById('connectCloseX');
 
-    function openConnectModal() { connectModal.classList.add('active'); }
+    function openConnectModal() { 
+      updateQrDisplay();
+      connectModal.classList.add('active'); 
+    }
     function closeConnectModal() { connectModal.classList.remove('active'); }
 
     if (btnMenuConnect) btnMenuConnect.addEventListener('click', openConnectModal);
@@ -2111,7 +2114,10 @@
 
       let targetUrl = '';
 
-      if (activeQrTab === 'tunnel') {
+      // PC側でWebRTCルームID（peerRoomId）が準備できている場合は最優先でスマホ接続URLを生成
+      if (peerRoomId) {
+        targetUrl = `${window.location.origin}${window.location.pathname}?room=${peerRoomId}`;
+      } else if (activeQrTab === 'tunnel') {
         if (serverInfo && serverInfo.tunnelRemoteUrl) {
           // Vercel または登録済みデプロイ先ホスト
           const savedDeployHost = localStorage.getItem('wss_deploy_host') || '';
@@ -2728,42 +2734,46 @@
       }
     }
 
+    // --------------------------------------------------------------------------
+    // WebRTC PeerJS 設定 (Google公開STUNサーバーによる高信頼P2P直結)
+    // --------------------------------------------------------------------------
+    const PEER_CONFIG = {
+      debug: 1,
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' },
+          { urls: 'stun:stun3.l.google.com:19302' },
+          { urls: 'stun:stun4.l.google.com:19302' }
+        ],
+        iceCandidatePoolSize: 10
+      }
+    };
+
     // ホスト（PC側）の初期化
     function initHostPeer() {
-      const shortId = 'mt' + Math.floor(1000 + Math.random() * 9000);
+      const generateId = () => 'mt' + Math.random().toString(36).substring(2, 8);
+      const shortId = generateId();
       peerRoomId = shortId;
-      if (hostRoomIdText) hostRoomIdText.textContent = shortId.toUpperCase();
 
       try {
-        peer = new Peer(shortId, { debug: 1 });
+        peer = new Peer(shortId, PEER_CONFIG);
       } catch(e) {
-        peer = new Peer({ debug: 1 });
+        peer = new Peer(PEER_CONFIG);
       }
 
       peer.on('open', async (id) => {
         peerRoomId = id;
-        if (hostRoomIdText) hostRoomIdText.textContent = id.toUpperCase();
-        const joinUrl = `${window.location.origin}${window.location.pathname}?room=${id}`;
-
-        if (window.QRCodeLib && window.QRCodeLib.toDataURL && hostQrImg) {
-          try {
-            const dataUrl = await window.QRCodeLib.toDataURL(joinUrl, {
-              margin: 2,
-              width: 260,
-              color: { dark: '#181818', light: '#ffffff' }
-            });
-            hostQrImg.src = dataUrl;
-          } catch(e) {}
-        }
+        console.log('[WebRTC Host] ルーム開設完了:', id);
+        updateQrDisplay();
       });
 
       peer.on('connection', (conn) => {
+        console.log('[WebRTC Host] スマホリモコンが接続されました');
         peerConnections.push(conn);
         conn.on('open', () => {
           updateWsIndicator(true);
-          if (hostWaitingCard) hostWaitingCard.style.display = 'none';
-          if (hostConnectedPanel) hostConnectedPanel.classList.add('active');
-          updateHostDisplay();
           conn.send({ type: 'sync_state', slide: currentSlide, isRunning: isTimerRunning });
         });
 
@@ -2775,29 +2785,33 @@
           peerConnections = peerConnections.filter(c => c !== conn);
           if (peerConnections.length === 0) {
             updateWsIndicator(false);
-            if (hostWaitingCard) hostWaitingCard.style.display = 'flex';
-            if (hostConnectedPanel) hostConnectedPanel.classList.remove('active');
           }
         });
       });
 
       peer.on('error', (err) => {
         console.warn('Peer host error:', err);
+        if (err.type === 'unavailable-id') {
+          setTimeout(initHostPeer, 500);
+        }
       });
     }
 
     // クライアント（スマホ側）の初期化
     function initClientPeer(targetHostId) {
-      peer = new Peer({ debug: 1 });
+      peer = new Peer(PEER_CONFIG);
 
       peer.on('open', () => {
+        console.log('[WebRTC Client] ホスト接続開始:', targetHostId);
         const conn = peer.connect(targetHostId, { reliable: true });
         peerConn = conn;
 
         conn.on('open', () => {
+          console.log('[WebRTC Client] ホストとP2P接続確立！');
           updateWsIndicator(true);
-          // 自動遷移せずメニュー画面で待機（ユーザーが任意でスライド／トラックパッドを選択）
-          if (navigator.vibrate) try { navigator.vibrate(50); } catch(e) {}
+          if (navigator.vibrate) try { navigator.vibrate([60, 40, 60]); } catch(e) {}
+          // スマホ側のみ、直感的に操作できるようスライド画面へ切り替え
+          switchView('viewSlideSwitch');
         });
 
         conn.on('data', (data) => {
@@ -2881,7 +2895,17 @@
         sent = true;
       }
 
-      if (!sent) {
+      // 3. HTTP POST フォールバック (Mixed Content対策 & 確実なローカルOS配信)
+      try {
+        fetch('http://127.0.0.1:3000/api/native', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: msg,
+          mode: 'cors'
+        }).catch(() => {});
+      } catch (e) {}
+
+      if (!sent && (!nativeWs || nativeWs.readyState !== WebSocket.CONNECTING)) {
         connectNativeServer();
       }
       return sent;

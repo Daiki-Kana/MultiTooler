@@ -244,20 +244,32 @@ function getPrimaryIp() {
 }
 
 // ------------------------------------------------------------------------------
-// CORS許可（Cloudflare Pages等の外部ホストからのAPI・情報取得を許可）
+// CORS許可（Cloudflare Pages/Vercel等の外部ホストからのAPI・情報取得を許可）
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, X-Requested-With');
+  res.header('Access-Control-Allow-Private-Network', 'true');
   if (req.method === 'OPTIONS') return res.sendStatus(200);
   next();
 });
 
+app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // スマホ・PC共通の単一アプリを提供 (/remote へのアクセスも同一アプリへ)
 app.get('/remote', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// OSネイティブ操作用 HTTP POST API (WebSocketフォールバック用)
+app.post('/api/native', (req, res) => {
+  try {
+    handleNativeAction(req.body);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
 });
 
 app.get('/api/info', async (req, res) => {
@@ -381,72 +393,80 @@ wss.on('connection', (ws, req) => {
         return;
       }
 
-      if (data.type === 'mouse_move') {
-        const dx = Math.round(data.dx);
-        const dy = Math.round(data.dy);
-        if (dx !== 0 || dy !== 0) {
-          sendNativeMouse(`MOUSE_MOVE ${dx} ${dy}`);
-        }
-        return;
-      }
+function handleNativeAction(data) {
+  if (!data) return false;
 
-      if (data.type === 'mouse_click') {
-        if (data.button === 'right') sendNativeMouse('MOUSE_CLICK_RIGHT');
-        else sendNativeMouse('MOUSE_CLICK_LEFT');
-        return;
-      }
+  if (data.type === 'mouse_move') {
+    const dx = Math.round(data.dx);
+    const dy = Math.round(data.dy);
+    if (dx !== 0 || dy !== 0) {
+      return sendNativeMouse(`MOUSE_MOVE ${dx} ${dy}`);
+    }
+    return true;
+  }
 
-      if (data.type === 'mouse_drag') {
-        if (data.state === 'start') sendNativeMouse('MOUSE_DRAG_START');
-        else sendNativeMouse('MOUSE_DRAG_END');
-        return;
-      }
+  if (data.type === 'mouse_click') {
+    if (data.button === 'right') return sendNativeMouse('MOUSE_CLICK_RIGHT');
+    return sendNativeMouse('MOUSE_CLICK_LEFT');
+  }
 
-      if (data.type === 'mouse_scroll') {
-        sendNativeMouse(`MOUSE_SCROLL ${Math.round(data.delta)}`);
-        return;
-      }
+  if (data.type === 'mouse_drag') {
+    if (data.state === 'start') return sendNativeMouse('MOUSE_DRAG_START');
+    return sendNativeMouse('MOUSE_DRAG_END');
+  }
 
-      if (data.type === 'clipboard') {
-        if (data.action === 'copy') sendNativeMouse('CMD_COPY');
-        else if (data.action === 'paste') sendNativeMouse('CMD_PASTE');
-        return;
-      }
+  if (data.type === 'mouse_scroll') {
+    return sendNativeMouse(`MOUSE_SCROLL ${Math.round(data.delta)}`);
+  }
 
-      if (data.type === 'keyboard_text') {
-        const text = String(data.text || '');
-        if (text) {
-          const b64 = Buffer.from(text, 'utf-8').toString('base64');
-          console.log(`[Keyboard] テキスト入力送信: "${text}"`);
-          sendNativeMouse(`KEY_TEXT ${b64}`);
-        }
-        return;
-      }
+  if (data.type === 'clipboard') {
+    if (data.action === 'copy') return sendNativeMouse('CMD_COPY');
+    if (data.action === 'paste') return sendNativeMouse('CMD_PASTE');
+    return false;
+  }
 
-      if (data.type === 'keyboard_key') {
-        const key = String(data.key || '').toUpperCase();
-        if (key) {
-          console.log(`[Keyboard] 特殊キー送信: ${key}`);
-          sendNativeMouse(`KEY_SPECIAL ${key}`);
-        }
+  if (data.type === 'keyboard_text') {
+    const text = String(data.text || '');
+    if (text) {
+      const b64 = Buffer.from(text, 'utf-8').toString('base64');
+      console.log(`[Keyboard] テキスト入力送信: "${text}"`);
+      return sendNativeMouse(`KEY_TEXT ${b64}`);
+    }
+    return false;
+  }
+
+  if (data.type === 'keyboard_key') {
+    const key = String(data.key || '').toUpperCase();
+    if (key) {
+      console.log(`[Keyboard] 特殊キー送信: ${key}`);
+      return sendNativeMouse(`KEY_SPECIAL ${key}`);
+    }
+    return false;
+  }
+
+  if (data.type === 'command') {
+    const action = data.action;
+    if (action === 'copy') return sendNativeMouse('CMD_COPY');
+    if (action === 'paste') return sendNativeMouse('CMD_PASTE');
+    if (action === 'drag_start') return sendNativeMouse('MOUSE_DRAG_START');
+    if (action === 'drag_end') return sendNativeMouse('MOUSE_DRAG_END');
+    return sendNativeKey(action);
+  }
+
+  return false;
+}
+
+      if (data.type === 'mouse_move' || data.type === 'mouse_click' || 
+          data.type === 'mouse_drag' || data.type === 'mouse_scroll' || 
+          data.type === 'clipboard' || data.type === 'keyboard_text' || 
+          data.type === 'keyboard_key') {
+        handleNativeAction(data);
         return;
       }
 
       if (data.type === 'command') {
         const action = data.action;
-        let success = false;
-
-        if (action === 'copy') {
-          success = sendNativeMouse('CMD_COPY');
-        } else if (action === 'paste') {
-          success = sendNativeMouse('CMD_PASTE');
-        } else if (action === 'drag_start') {
-          success = sendNativeMouse('MOUSE_DRAG_START');
-        } else if (action === 'drag_end') {
-          success = sendNativeMouse('MOUSE_DRAG_END');
-        } else {
-          success = sendNativeKey(action);
-        }
+        const success = handleNativeAction(data);
 
         let actionLabel = '';
         if (action === 'next') actionLabel = 'Next Slide';
