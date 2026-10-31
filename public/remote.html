@@ -454,6 +454,11 @@
       transform: scale(0.92);
     }
 
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
     /* Camera Scanner Viewport */
     .scanner-viewport {
       position: relative;
@@ -1140,12 +1145,20 @@
         <img id="qrImage" class="qr-img" src="" alt="QR">
         <div class="url-row">
           <span class="url-text" id="remoteUrlDisplay"></span>
-          <button type="button" id="copyUrlBtn" class="btn-icon" style="width: 32px; height: 32px;" aria-label="Copy">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="9" y="9" width="13" height="13" rx="2"></rect>
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-            </svg>
-          </button>
+          <div style="display: flex; gap: 4px; align-items: center; flex-shrink: 0;">
+            <button type="button" id="btnRefreshTunnel" class="btn-icon" style="width: 32px; height: 32px;" aria-label="Refresh Tunnel" title="Refresh Tunnel">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+              </svg>
+            </button>
+            <button type="button" id="copyUrlBtn" class="btn-icon" style="width: 32px; height: 32px;" aria-label="Copy">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+            </button>
+          </div>
         </div>
 
         <!-- Server Host Config (Cloudflare Pages / Custom Tunnel Target) -->
@@ -1913,9 +1926,14 @@
     // --------------------------------------------------------------------------
     function getTargetServerConfig() {
       const urlParams = new URLSearchParams(window.location.search);
-      let rawServer = urlParams.get('server') || localStorage.getItem('wss_server_target') || '';
-
+      const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       const isPagesDev = window.location.hostname.endsWith('.pages.dev');
+
+      let rawServer = urlParams.get('server') || '';
+      // localhost以外（Cloudflare Pages等の静的CDN）でのみlocalStorageのカスタムサーバーを使用
+      if (!rawServer && !isLocalHost) {
+        rawServer = localStorage.getItem('wss_server_target') || '';
+      }
       if (!rawServer && !isPagesDev) {
         rawServer = window.location.origin;
       }
@@ -1930,7 +1948,9 @@
           const u = new URL(httpOrigin);
           const isSecure = u.protocol === 'https:';
           const wsUrl = `${isSecure ? 'wss:' : 'ws:'}//${u.host}`;
-          localStorage.setItem('wss_server_target', u.origin);
+          if (!isLocalHost) {
+            localStorage.setItem('wss_server_target', u.origin);
+          }
           return {
             httpOrigin: u.origin,
             wsUrl: wsUrl,
@@ -1991,6 +2011,7 @@
     async function updateQrDisplay() {
       const cfg = getTargetServerConfig();
       const isPagesDev = window.location.hostname.endsWith('.pages.dev');
+      const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
       let targetUrl = '';
 
@@ -2001,12 +2022,11 @@
           } else {
             targetUrl = serverInfo.tunnelRemoteUrl;
           }
-        } else if (cfg.hasCustomServer) {
+        } else if (cfg.hasCustomServer && !isLocalHost) {
           targetUrl = isPagesDev
             ? `${window.location.origin}${window.location.pathname}?server=${encodeURIComponent(cfg.httpOrigin)}`
             : cfg.httpOrigin;
         } else {
-          // サーバー情報が未接続でも、現在のPages URLで即時QRコードを描画（真っ白防止）
           targetUrl = `${window.location.origin}${window.location.pathname}`;
         }
       } else {
@@ -2022,22 +2042,25 @@
 
     async function loadServerInfo() {
       const cfg = getTargetServerConfig();
+      const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-      if (inputServerUrl && cfg.hasCustomServer) {
-        inputServerUrl.value = cfg.httpOrigin;
-      }
-
-      // 初期表示で即座にQRコードをクライアント描画（空白になるのを防止）
-      await updateQrDisplay();
-
-      // バックエンドAPIから情報取得（存在する場合）
+      // バックエンドAPIから情報取得
       try {
         const res = await fetch(`${cfg.httpOrigin}/api/info`);
         if (res.ok) {
           serverInfo = await res.json();
-          await updateQrDisplay();
         }
       } catch (err) {}
+
+      if (inputServerUrl) {
+        if (serverInfo && serverInfo.tunnelRemoteUrl) {
+          inputServerUrl.value = serverInfo.tunnelRemoteUrl;
+        } else if (cfg.hasCustomServer && !isLocalHost) {
+          inputServerUrl.value = cfg.httpOrigin;
+        }
+      }
+
+      await updateQrDisplay();
     }
 
     if (btnSaveServerUrl && inputServerUrl) {
@@ -2079,6 +2102,32 @@
       updateQrDisplay();
     });
 
+    const btnRefreshTunnel = document.getElementById('btnRefreshTunnel');
+    if (btnRefreshTunnel) {
+      btnRefreshTunnel.addEventListener('click', async () => {
+        const svgIcon = btnRefreshTunnel.querySelector('svg');
+        if (svgIcon) svgIcon.style.animation = 'spin 0.8s linear infinite';
+        try {
+          const cfg = getTargetServerConfig();
+          const res = await fetch(`${cfg.httpOrigin}/api/refresh-tunnel`, { method: 'POST' });
+          const data = await res.json();
+          if (data.tunnelRemoteUrl) {
+            if (!serverInfo) serverInfo = {};
+            serverInfo.tunnelRemoteUrl = data.tunnelRemoteUrl;
+            serverInfo.hasTunnel = true;
+            await updateQrDisplay();
+            if (navigator.vibrate) try { navigator.vibrate(30); } catch (e) {}
+          }
+        } catch (e) {
+          loadServerInfo();
+        } finally {
+          setTimeout(() => {
+            if (svgIcon) svgIcon.style.animation = '';
+          }, 800);
+        }
+      });
+    }
+
     copyUrlBtn.addEventListener('click', () => {
       const url = remoteUrlDisplay.textContent;
       if (!url) return;
@@ -2110,8 +2159,17 @@
         requestWakeLock();
       });
 
-      socket.addEventListener('message', (event) => {
-        // 常時認証済みのため認証要求チェックは不要
+      socket.addEventListener('message', async (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          // トンネルURLが再発行された際にQRコードをリアルタイム自動更新
+          if (msg.type === 'tunnel_update') {
+            if (!serverInfo) serverInfo = {};
+            serverInfo.tunnelRemoteUrl = msg.tunnelRemoteUrl;
+            serverInfo.hasTunnel = msg.hasTunnel;
+            await updateQrDisplay();
+          }
+        } catch (e) {}
       });
 
       socket.addEventListener('close', () => {

@@ -118,8 +118,25 @@ initNativeKeyEngine();
 // ------------------------------------------------------------------------------
 // 2. Cloudflare Tunnel 自動連携
 // ------------------------------------------------------------------------------
+// 2. Cloudflare Tunnel 自動連携 & セルフヒーリング
+// ------------------------------------------------------------------------------
 let cloudflaredProcess = null;
 let currentTunnelUrl = '';
+let isRestartingTunnel = false;
+
+function broadcastTunnelUpdate() {
+  const payload = JSON.stringify({
+    type: 'tunnel_update',
+    tunnelRemoteUrl: currentTunnelUrl ? `${currentTunnelUrl}/` : '',
+    hasTunnel: !!currentTunnelUrl
+  });
+
+  for (const client of wss.clients) {
+    if (client.readyState === client.OPEN) {
+      client.send(payload);
+    }
+  }
+}
 
 function startCloudflareTunnel() {
   const exePath = path.join(__dirname, 'cloudflared.exe');
@@ -135,19 +152,26 @@ function startCloudflareTunnel() {
     cloudflaredProcess.stderr.on('data', (data) => {
       const text = data.toString();
       const match = text.match(/https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/);
-      if (match && !currentTunnelUrl) {
-        currentTunnelUrl = match[0];
-        console.log('================================================================');
-        console.log(`  [Cloudflare] トンネルURLが正常に発行されました:`);
-        console.log(`  👉 ${currentTunnelUrl}/remote`);
-        console.log('================================================================');
+      if (match) {
+        const newUrl = match[0];
+        if (newUrl !== currentTunnelUrl) {
+          currentTunnelUrl = newUrl;
+          console.log('================================================================');
+          console.log(`  [Cloudflare] トンネルURLが正常に発行されました:`);
+          console.log(`  👉 ${currentTunnelUrl}/remote`);
+          console.log('================================================================');
+          broadcastTunnelUpdate();
+        }
       }
     });
 
     cloudflaredProcess.on('exit', (code) => {
       console.warn(`[Cloudflare] トンネルが終了しました (code: ${code})。再接続を試みます...`);
       currentTunnelUrl = '';
-      setTimeout(startCloudflareTunnel, 4000);
+      broadcastTunnelUpdate();
+      if (!isRestartingTunnel) {
+        setTimeout(startCloudflareTunnel, 4000);
+      }
     });
 
     cloudflaredProcess.on('error', (err) => {
@@ -157,6 +181,64 @@ function startCloudflareTunnel() {
     console.error('[Cloudflare] 起動エラー:', err.message);
   }
 }
+
+// トンネル再起動関数
+function restartCloudflareTunnel() {
+  return new Promise((resolve) => {
+    isRestartingTunnel = true;
+    currentTunnelUrl = '';
+    broadcastTunnelUpdate();
+    if (cloudflaredProcess) {
+      try {
+        cloudflaredProcess.kill();
+      } catch (e) {}
+      cloudflaredProcess = null;
+    }
+    setTimeout(() => {
+      isRestartingTunnel = false;
+      startCloudflareTunnel();
+      let attempts = 0;
+      const waitInterval = setInterval(() => {
+        attempts++;
+        if (currentTunnelUrl || attempts > 20) {
+          clearInterval(waitInterval);
+          resolve(currentTunnelUrl);
+        }
+      }, 500);
+    }, 1000);
+  });
+}
+
+// 定期死活ヘルスチェック（60秒毎にトンネルの生存を確認し、失効時は自動再接続）
+setInterval(async () => {
+  if (!currentTunnelUrl) return;
+  try {
+    const https = require('https');
+    const u = new URL(currentTunnelUrl);
+    const req = https.request({
+      hostname: u.hostname,
+      port: 443,
+      path: '/api/info',
+      method: 'HEAD',
+      timeout: 8000
+    }, (res) => {
+      if (res.statusCode >= 500) {
+        console.warn('[Cloudflare] トンネル応答異常を検知、再起動します...');
+        restartCloudflareTunnel();
+      }
+    });
+    req.on('error', (e) => {
+      console.warn(`[Cloudflare] トンネル切断を検知 (${e.message})。自動再起動します...`);
+      restartCloudflareTunnel();
+    });
+    req.on('timeout', () => {
+      req.destroy();
+      console.warn('[Cloudflare] トンネル応答タイムアウト。自動再起動します...');
+      restartCloudflareTunnel();
+    });
+    req.end();
+  } catch (err) {}
+}, 60000);
 
 startCloudflareTunnel();
 
@@ -248,6 +330,21 @@ app.get('/api/info', async (req, res) => {
 // PINコード再生成API（無効化・互換ダミー）
 app.post('/api/regenerate-pin', (req, res) => {
   res.json({ success: true });
+});
+
+// トンネル再取得・リフレッシュAPI
+app.post('/api/refresh-tunnel', async (req, res) => {
+  try {
+    console.log('[Cloudflare] トンネル手動再取得リクエストを受信しました');
+    const newUrl = await restartCloudflareTunnel();
+    res.json({
+      success: true,
+      tunnelRemoteUrl: newUrl ? `${newUrl}/` : '',
+      hasTunnel: !!newUrl
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'トンネルの再取得に失敗しました' });
+  }
 });
 
 // ------------------------------------------------------------------------------
