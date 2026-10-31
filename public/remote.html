@@ -178,34 +178,118 @@
     .connection-pill[data-route="cloud"] .route-wifi { display: none; }
     .connection-pill[data-route="cloud"] .route-cloud { display: inline-flex; }
 
-    /* 接続トースト (画面中央の大型プレミアム・モーショングラフィックス) */
-    .conn-toast {
+    /* --------------------------------------------------------------------------
+       Connection Blocker & Dynamic Toast (Icon First, Zero Borders, Aesthetic)
+       -------------------------------------------------------------------------- */
+    .conn-blocker {
       position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%) scale(0.85);
-      background: rgba(14, 14, 16, 0.96);
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 999999;
+      background: rgba(14, 14, 16, 0.94);
       backdrop-filter: blur(28px);
       -webkit-backdrop-filter: blur(28px);
-      color: #ffffff;
-      padding: 24px 32px 20px 32px;
-      border-radius: 28px;
-      z-index: 999999;
-      pointer-events: none;
-      opacity: 0;
-      transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease;
-      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.38);
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 16px;
-      border: none;
-      min-width: 280px;
+      justify-content: center;
+      transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.4s ease;
+      user-select: none;
+      -webkit-user-select: none;
+      pointer-events: all;
     }
 
-    .conn-toast.show {
-      transform: translate(-50%, -50%) scale(1);
+    .conn-blocker.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .blocker-container {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      max-width: 360px;
+      min-height: 180px;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+
+    /* 1. 未接続時: 中央スピナー（クルクル）＆スキャン起動 */
+    .blocker-waiting {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 32px;
       opacity: 1;
+      transform: scale(1);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      pointer-events: all;
+    }
+
+    .conn-blocker.state-connected .blocker-waiting {
+      opacity: 0;
+      transform: scale(0.8);
+      pointer-events: none;
+    }
+
+    .spinner-svg {
+      animation: spinSpinner 1.1s linear infinite;
+    }
+
+    @keyframes spinSpinner {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .blocker-scan-btn {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      color: #ffffff;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background-color 0.12s ease, transform 0.08s ease;
+      padding: 0;
+    }
+
+    .blocker-scan-btn:hover {
+      background: rgba(255, 255, 255, 0.14);
+    }
+
+    .blocker-scan-btn:active {
+      transform: scale(0.92);
+      background: rgba(255, 255, 255, 0.22);
+    }
+
+    /* 2. 接続完了時: 2.5秒ワイヤーアニメーション ＆ 中央チェックマーク */
+    .blocker-connected {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 22px;
+      width: 100%;
+      opacity: 0;
+      transform: scale(0.9);
+      pointer-events: none;
+      transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .conn-blocker.state-connected .blocker-connected {
+      opacity: 1;
+      transform: scale(1);
+      pointer-events: all;
     }
 
     .toast-anim-row {
@@ -235,7 +319,7 @@
       flex: 1;
     }
 
-    /* SVGワイヤー線アニメーション (PCからスマホへゆっくり優雅に伸びる) */
+    /* SVGワイヤー線アニメーション (PCからスマホへ2.5秒間ゆっくり優雅に伸びる) */
     .wire-line {
       stroke: #ffffff;
       stroke-width: 3.2;
@@ -243,10 +327,10 @@
       stroke-dasharray: 120;
       stroke-dashoffset: 120;
       filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.85));
-      transition: stroke-dashoffset 1.35s cubic-bezier(0.2, 0.8, 0.25, 1);
+      transition: stroke-dashoffset 2.5s cubic-bezier(0.2, 0.8, 0.25, 1);
     }
 
-    .conn-toast.show .wire-line {
+    .conn-blocker.state-connected .wire-line {
       stroke-dashoffset: 0;
     }
 
@@ -255,9 +339,9 @@
       align-items: center;
     }
 
-    /* ラインがスマホに届いた瞬間(1.35s後)のリアクション */
-    .conn-toast.show .toast-node.toast-phone {
-      animation: toastPhonePop 0.45s cubic-bezier(0.16, 1, 0.3, 1) 1.35s both;
+    /* ラインがスマホに届いた瞬間(2.5秒後)のリアクション */
+    .conn-blocker.state-connected .toast-node.toast-phone {
+      animation: toastPhonePop 0.45s cubic-bezier(0.16, 1, 0.3, 1) 2.5s both;
     }
 
     @keyframes toastPhonePop {
@@ -266,35 +350,29 @@
       100% { transform: scale(1); }
     }
 
-    .toast-label-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-family: var(--font-family);
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: 0.8px;
-      color: #ffffff;
-      text-transform: uppercase;
-    }
-
-    .toast-badge-check {
+    /* 中央チェックマーク (緑ではなく白黒モノトーン・中央アイコンファースト) */
+    .toast-center-check {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 18px;
-      height: 18px;
+      width: 52px;
+      height: 52px;
       border-radius: 50%;
-      background: #34c759;
+      background: rgba(255, 255, 255, 0.12);
       color: #ffffff;
       opacity: 0;
-      transform: scale(0);
-      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1) 1.45s;
+      transform: scale(0.4);
+      transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1) 2.5s, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) 2.5s;
     }
 
-    .conn-toast.show .toast-badge-check {
+    .conn-blocker.state-connected .toast-center-check {
       opacity: 1;
       transform: scale(1);
+    }
+
+    @keyframes fadeInBlocker {
+      from { opacity: 0; transform: scale(0.94); }
+      to { opacity: 1; transform: scale(1); }
     }
 
     /* --------------------------------------------------------------------------
@@ -1108,43 +1186,59 @@
 
   <div id="flashOverlay" class="flash-overlay"></div>
   
-  <!-- Connection Modal Toast (PC to Phone Wire Link Animation, Centered & Dynamic) -->
-  <div id="connectionToast" class="conn-toast" data-mode="wifi" aria-live="polite">
-    <div class="toast-anim-row">
-      <!-- PC Node (Host / Sender) -->
-      <div class="toast-node toast-pc" title="Computer">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="2" y="3" width="20" height="14" rx="2"></rect>
-          <line x1="8" y1="21" x2="16" y2="21"></line>
-          <line x1="12" y1="17" x2="12" y2="21"></line>
+  <!-- Connection Blocker & Toast (待機クルクル ＆ 2.5秒ワイヤー ＆ 中央チェックマーク) -->
+  <div id="connectionBlocker" class="conn-blocker" aria-live="polite">
+    <div class="blocker-container">
+      <!-- 1. 未接続時: 中央クルクル(スピナー) ＆ スキャン起動ボタン -->
+      <div class="blocker-waiting" id="blockerWaiting">
+        <svg class="spinner-svg" width="52" height="52" viewBox="0 0 50 50">
+          <circle cx="25" cy="25" r="20" fill="none" stroke="rgba(255, 255, 255, 0.12)" stroke-width="3.5"></circle>
+          <circle cx="25" cy="25" r="20" fill="none" stroke="#ffffff" stroke-width="3.5" stroke-dasharray="80" stroke-dashoffset="60" stroke-linecap="round"></circle>
         </svg>
+        <button type="button" id="btnBlockerScan" class="blocker-scan-btn" aria-label="Scan PC QR">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+            <circle cx="12" cy="13" r="4"></circle>
+          </svg>
+        </button>
       </div>
 
-      <!-- Wire Animation Area (PC -> Smartphone Direct) -->
-      <div class="toast-wire-area" id="toastWireArea">
-        <div class="wire-direct">
-          <svg class="wire-svg" viewBox="0 0 100 24" width="100" height="24">
-            <line x1="0" y1="12" x2="100" y2="12" class="wire-line wire-line-direct"></line>
+      <!-- 2. 接続完了時: 2.5秒ワイヤーアニメーション ＆ 中央チェックマーク -->
+      <div class="blocker-connected" id="blockerConnected">
+        <div class="toast-anim-row">
+          <!-- PC Node -->
+          <div class="toast-node toast-pc" title="Computer">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+          </div>
+
+          <!-- Wire Area (PC -> Smartphone Direct 2.5s) -->
+          <div class="toast-wire-area" id="toastWireArea">
+            <div class="wire-direct">
+              <svg class="wire-svg" viewBox="0 0 100 24" width="100" height="24">
+                <line x1="0" y1="12" x2="100" y2="12" class="wire-line wire-line-direct"></line>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Phone Node -->
+          <div class="toast-node toast-phone" title="Smartphone">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+              <line x1="12" y1="18" x2="12.01" y2="18"></line>
+            </svg>
+          </div>
+        </div>
+
+        <!-- 中央チェックマーク (緑ではなく白黒モノトーン・中央アイコンファースト) -->
+        <div class="toast-center-check" id="toastCenterCheck">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
           </svg>
         </div>
-      </div>
-
-      <!-- Phone Node (Remote / Receiver) -->
-      <div class="toast-node toast-phone" title="Smartphone">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
-          <line x1="12" y1="18" x2="12.01" y2="18"></line>
-        </svg>
-      </div>
-    </div>
-
-    <!-- Label & Check Row -->
-    <div class="toast-label-row">
-      <span id="toastModeLabel">DEVICE LINKED</span>
-      <div class="toast-badge-check">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="20 6 9 17 4 12"></polyline>
-        </svg>
       </div>
     </div>
   </div>
@@ -2672,27 +2766,36 @@
 
     let lastPairingAnimTime = 0;
     const pageLoadTimestamp = Date.now();
+    let blockerTimeout = null;
+
+    // 接続待機＆接続完了ブロッキングオーバーレイの要素取得
+    const connBlocker = document.getElementById('connectionBlocker');
+    const btnBlockerScan = document.getElementById('btnBlockerScan');
+
+    if (btnBlockerScan) {
+      btnBlockerScan.addEventListener('click', () => {
+        const scanBtn = document.getElementById('btnMenuScan');
+        if (scanBtn) scanBtn.click();
+      });
+    }
 
     function triggerConnectionAnimation() {
-      const toast = document.getElementById('connectionToast');
-      if (!toast) return;
+      if (!connBlocker) return;
 
-      toast.setAttribute('data-mode', 'wifi');
-      const label = document.getElementById('toastModeLabel');
-      if (label) {
-        label.textContent = 'DEVICE LINKED';
-      }
-
-      // ワイヤーアニメーションのリセット & 再発火 (PCからスマホへゆっくり優雅に伸びる)
-      toast.classList.remove('show');
-      void toast.offsetWidth; // リフロー強制
-      toast.classList.add('show');
+      // 接続完了状態に切り替え、2.5秒のワイヤーアニメーションをリフロー再描画
+      connBlocker.classList.remove('hidden');
+      connBlocker.classList.remove('state-connected');
+      void connBlocker.offsetWidth; // リフロー強制
+      requestAnimationFrame(() => {
+        connBlocker.classList.add('state-connected');
+      });
 
       if (navigator.vibrate) try { navigator.vibrate([40, 70, 45]); } catch (e) {}
 
-      clearTimeout(toastTimeout);
-      toastTimeout = setTimeout(() => {
-        toast.classList.remove('show');
+      // 2.5秒ワイヤーアニメーション＋中央チェックマーク出現後、約3.8秒でフェードアウトして操作アンロック
+      clearTimeout(blockerTimeout);
+      blockerTimeout = setTimeout(() => {
+        connBlocker.classList.add('hidden');
       }, 3800);
     }
 
@@ -2746,6 +2849,16 @@
           pill.classList.add('disconnected');
         }
       });
+
+      // スマホ（リモコン）側で未接続状態の場合は、操作をブロックして中央にクルクルを表示
+      const isClientDevice = typeof isPeerHost !== 'undefined' && !isPeerHost;
+      if (connBlocker) {
+        if (!connected && isClientDevice) {
+          clearTimeout(blockerTimeout);
+          connBlocker.classList.remove('state-connected');
+          connBlocker.classList.remove('hidden');
+        }
+      }
 
       lastConnectedState = connected;
 
@@ -3136,14 +3249,25 @@
         // === スマホ（リモコン）側 ===
         isPeerHost = false;
         peerRoomId = queryRoom;
+        if (connBlocker) {
+          connBlocker.classList.remove('hidden');
+          connBlocker.classList.remove('state-connected');
+        }
         initClientPeer(queryRoom);
       } else if (!isMobile) {
-        // === PC（大画面ホスト）側 === (自動で画面遷移せずメニュー待機)
+        // === PC（大画面ホスト）側 === (QRコードを表示するため画面全体を初期ブロックしない)
         isPeerHost = true;
+        if (connBlocker) {
+          connBlocker.classList.add('hidden');
+        }
         initHostPeer();
       } else {
-        // スマホで直接開いた場合（待受ではなくリモコンメニュー）
+        // スマホで直接開いた場合（未接続時は中央にクルクルを表示して操作ブロック）
         isPeerHost = false;
+        if (connBlocker) {
+          connBlocker.classList.remove('hidden');
+          connBlocker.classList.remove('state-connected');
+        }
       }
     }
 
