@@ -2057,8 +2057,6 @@
     let serverInfo = null;
     let activeQrTab = 'tunnel';
 
-    const tabTunnel = document.getElementById('tabTunnel');
-    const tabLocal = document.getElementById('tabLocal');
     const qrImage = document.getElementById('qrImage');
     const remoteUrlDisplay = document.getElementById('remoteUrlDisplay');
     const copyUrlBtn = document.getElementById('copyUrlBtn');
@@ -2195,11 +2193,6 @@
         }
       });
     }
-
-    const tabTunnel = document.getElementById('tabTunnel');
-    const tabLocal = document.getElementById('tabLocal');
-    if (tabTunnel) tabTunnel.addEventListener('click', () => { activeQrTab = 'tunnel'; updateQrDisplay(); });
-    if (tabLocal) tabLocal.addEventListener('click', () => { activeQrTab = 'local'; updateQrDisplay(); });
 
     const btnRefreshTunnel = document.getElementById('btnRefreshTunnel');
     if (btnRefreshTunnel) {
