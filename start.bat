@@ -13,9 +13,6 @@ if not exist node_modules (
   call npm install
 )
 
-REM 1.5秒後にブラウザでPCダッシュボードを開く
-start "" cmd /c "timeout /t 2 /nobreak > nul & start http://localhost:3000"
-
-REM サーバー起動
+REM サーバー起動（コンソールにスマホ接続用QRコードが直接表示されます）
 node server.js
 pause

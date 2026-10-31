@@ -158,8 +158,12 @@ function startCloudflareTunnel() {
           currentTunnelUrl = newUrl;
           console.log('================================================================');
           console.log(`  [Cloudflare] トンネルURLが正常に発行されました:`);
-          console.log(`  👉 ${currentTunnelUrl}/remote`);
+          console.log(`  👉 ${currentTunnelUrl}/`);
+          console.log('  【スマホのカメラで下記QRコードを読み取れば即座に操作可能】');
           console.log('================================================================');
+          QRCode.toString(`${currentTunnelUrl}/`, { type: 'terminal', small: true }, (err, qr) => {
+            if (!err && qr) console.log(qr);
+          });
           broadcastTunnelUpdate();
         }
       }
@@ -515,9 +519,16 @@ process.on('exit', () => {
 // ------------------------------------------------------------------------------
 server.listen(PORT, '0.0.0.0', () => {
   const primaryIp = getPrimaryIp();
+  const localUrl = `http://${primaryIp}:${PORT}/`;
   console.log('================================================================');
   console.log(`  WebSlideSwitch サーバーが起動しました`);
-  console.log(`  ローカル アプリ:  http://localhost:${PORT}`);
-  console.log(`  ネットワークURL:  http://${primaryIp}:${PORT}/`);
+  console.log(`  ローカルURL:    http://localhost:${PORT}`);
+  console.log(`  Wi-Fi接続URL:   ${localUrl}`);
   console.log('================================================================');
+  QRCode.toString(localUrl, { type: 'terminal', small: true }, (err, qr) => {
+    if (!err && qr) {
+      console.log('  【同じWi-Fiに接続しているスマホ用QRコード】:');
+      console.log(qr);
+    }
+  });
 });

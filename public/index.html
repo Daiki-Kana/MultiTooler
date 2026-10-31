@@ -53,136 +53,6 @@
     }
 
     /* --------------------------------------------------------------------------
-       Host View (PC Presentation & Big QR Receiver, Borderless)
-       -------------------------------------------------------------------------- */
-    #viewHost {
-      display: none;
-      width: 100%;
-      height: 100vh;
-      height: 100dvh;
-      flex-direction: column;
-      background: var(--color-canvas);
-      overflow: hidden;
-      box-sizing: border-box;
-    }
-
-    #viewHost.active {
-      display: flex;
-    }
-
-    .host-container {
-      flex: 1;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-      box-sizing: border-box;
-      text-align: center;
-    }
-
-    .host-card {
-      background: var(--color-surface-1);
-      border-radius: 28px;
-      padding: 36px 40px;
-      max-width: 520px;
-      width: 100%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 20px;
-      box-sizing: border-box;
-      transition: all 0.25s ease;
-    }
-
-    .host-qr-img {
-      width: 260px;
-      height: 260px;
-      background: #ffffff;
-      padding: 12px;
-      border-radius: 20px;
-      display: block;
-      object-fit: contain;
-    }
-
-    .host-room-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      background: var(--color-surface-2);
-      padding: 8px 18px;
-      border-radius: 9999px;
-      font-family: var(--font-mono);
-      font-weight: 700;
-      font-size: 16px;
-      color: var(--color-ink);
-      letter-spacing: 1px;
-    }
-
-    .host-connected-panel {
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      height: 100%;
-      gap: 28px;
-    }
-
-    .host-connected-panel.active {
-      display: flex;
-    }
-
-    .host-slide-number {
-      font-size: clamp(80px, 18vw, 160px);
-      font-weight: 800;
-      font-family: var(--font-mono);
-      line-height: 1;
-      letter-spacing: -3px;
-    }
-
-    .host-timer-big {
-      font-size: clamp(36px, 8vw, 68px);
-      font-weight: 700;
-      font-family: var(--font-mono);
-      color: var(--color-ink-muted);
-      letter-spacing: -1px;
-    }
-
-    .host-actions-hint {
-      display: flex;
-      gap: 16px;
-      align-items: center;
-    }
-
-    /* レーザーポインター / バーチャルカーソル (完全ボーダーレス・高視認性) */
-    #laserPointer {
-      display: none;
-      position: fixed;
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(255, 30, 30, 0.95) 0%, rgba(255, 30, 30, 0.3) 60%, transparent 100%);
-      box-shadow: 0 0 16px rgba(255, 30, 30, 0.8);
-      pointer-events: none;
-      z-index: 9999;
-      transform: translate(-50%, -50%);
-      transition: width 0.08s ease, height 0.08s ease;
-    }
-
-    #laserPointer.active {
-      display: block;
-    }
-
-    #laserPointer.clicking {
-      width: 34px;
-      height: 34px;
-      box-shadow: 0 0 24px rgba(255, 30, 30, 1);
-    }
-
-    /* --------------------------------------------------------------------------
        Top Bar (Icon Buttons, Zero Borders)
        -------------------------------------------------------------------------- */
     .bar {
@@ -1044,81 +914,12 @@
   </video>
 
   <div id="flashOverlay" class="flash-overlay"></div>
-  <div id="laserPointer"></div>
-
-  <!-- 0. PC Host Presentation View (PCで開いた時のメイン画面) -->
-  <div id="viewHost" class="view-container">
-    <header class="bar">
-      <div class="bar-group">
-        <button type="button" id="btnHostToRemote" class="btn-icon" aria-label="Remote Controller">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="5" y="2" width="14" height="20" rx="2"></rect>
-            <line x1="12" y1="18" x2="12.01" y2="18"></line>
-          </svg>
-        </button>
-        <span class="status-dot" id="hostWsDot"></span>
-      </div>
-
-      <div class="bar-group">
-        <!-- Fullscreen Button -->
-        <button type="button" id="btnHostFullscreen" class="btn-icon" aria-label="Fullscreen">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="15 3 21 3 21 9"></polyline>
-            <polyline points="9 21 3 21 3 15"></polyline>
-            <line x1="21" y1="3" x2="14" y2="10"></line>
-            <line x1="3" y1="21" x2="10" y2="14"></line>
-          </svg>
-        </button>
-      </div>
-    </header>
-
-    <main class="host-container">
-      <!-- 待受画面 (QRコード表示) -->
-      <div class="host-card" id="hostWaitingCard">
-        <img id="hostQrImg" class="host-qr-img" src="" alt="Connect QR">
-        <div class="host-room-badge">
-          <span id="hostRoomIdText">INITIALIZING...</span>
-          <button type="button" id="btnCopyHostUrl" class="btn-icon" style="width:28px; height:28px;" aria-label="Copy Link">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="9" y="9" width="13" height="13" rx="2"></rect>
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      <!-- 接続完了後の大画面プレゼンモニター -->
-      <div class="host-connected-panel" id="hostConnectedPanel">
-        <div class="host-timer-big" id="hostBigTimer">00:00</div>
-        <div class="host-slide-number" id="hostSlideNum">1</div>
-        <div class="host-actions-hint">
-          <button type="button" class="btn-icon" id="btnHostPrev" style="width:52px; height:52px; background:var(--color-surface-1); border-radius:16px;" aria-label="Previous">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="15 18 9 12 15 6"></polyline>
-            </svg>
-          </button>
-          <button type="button" class="btn-icon" id="btnHostNext" style="width:52px; height:52px; background:var(--color-ink); color:#fff; border-radius:16px;" aria-label="Next">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
-          </button>
-        </div>
-      </div>
-    </main>
-  </div>
+  
 
   <!-- 1. Menu View -->
   <div id="viewToolMenu" class="view-container active">
     <header class="bar">
       <div class="bar-group">
-        <!-- Host Screen Icon Button -->
-        <button type="button" id="btnMenuHost" class="btn-icon" aria-label="PC Screen">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="2" y="3" width="20" height="14" rx="2"></rect>
-            <line x1="8" y1="21" x2="16" y2="21"></line>
-            <line x1="12" y1="17" x2="12" y2="21"></line>
-          </svg>
-        </button>
         <span class="status-dot" id="menuWsDot"></span>
       </div>
       <div class="bar-group">
@@ -1644,20 +1445,13 @@
       switchView('viewToolMenu');
     });
 
-    const btnMenuHost = document.getElementById('btnMenuHost');
-    const btnHostToRemote = document.getElementById('btnHostToRemote');
-    const btnHostFullscreen = document.getElementById('btnHostFullscreen');
-
-    if (btnMenuHost) btnMenuHost.addEventListener('click', () => switchView('viewHost'));
-    if (btnHostToRemote) btnHostToRemote.addEventListener('click', () => switchView('viewToolMenu'));
-    if (btnHostFullscreen) {
-      btnHostFullscreen.addEventListener('click', () => {
-        if (!document.fullscreenElement) {
-          document.documentElement.requestFullscreen().catch(() => {});
-        } else {
-          document.exitFullscreen().catch(() => {});
-        }
-      });
+    function sendToNativeServer(payload) {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify(payload));
+      }
+      if (typeof localBridgeWs !== 'undefined' && localBridgeWs && localBridgeWs.readyState === WebSocket.OPEN) {
+        localBridgeWs.send(JSON.stringify(payload));
+      }
     }
 
     // --------------------------------------------------------------------------
@@ -1688,9 +1482,7 @@
       if (typeof sendPeerMessage === 'function') {
         sendPeerMessage(payload);
       }
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify(payload));
-      }
+      sendToNativeServer(payload);
     }
 
     if (btnTrackpadBack) {
@@ -2667,9 +2459,7 @@
         sendPeerMessage({ type: 'command', action: action, slide: currentSlide });
       }
 
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({ type: 'command', action }));
-      }
+      sendToNativeServer({ type: 'command', action });
     }
 
     function bindAction(el, action) {
@@ -2929,9 +2719,8 @@
         peerRoomId = queryRoom;
         initClientPeer(queryRoom);
       } else if (!isMobile) {
-        // === PC（大画面ホスト）側 ===
+        // === PC（大画面ホスト）側 === (自動で画面遷移せずメニュー待機)
         isPeerHost = true;
-        switchView('viewHost');
         initHostPeer();
       } else {
         // スマホで直接開いた場合（待受ではなくリモコンメニュー）
@@ -3007,7 +2796,7 @@
 
         conn.on('open', () => {
           updateWsIndicator(true);
-          switchView('viewSlideSwitch');
+          // 自動遷移せずメニュー画面で待機（ユーザーが任意でスライド／トラックパッドを選択）
           if (navigator.vibrate) try { navigator.vibrate(50); } catch(e) {}
         });
 
@@ -3031,57 +2820,103 @@
       });
     }
 
-    let pointerX = window.innerWidth / 2;
-    let pointerY = window.innerHeight / 2;
-    let pointerHideTimeout = null;
-    const laserPointer = document.getElementById('laserPointer');
+    // --------------------------------------------------------------------------
+    // Native OS Server 通信管理 (Win32 Native API 物理操作直結)
+    // --------------------------------------------------------------------------
+    let nativeWs = null;
+    let isConnectingNativeWs = false;
 
-    // ホスト側でのコマンド・マウス操作受信処理
+    function connectNativeServer() {
+      if (isConnectingNativeWs) return;
+      if (nativeWs && (nativeWs.readyState === WebSocket.OPEN || nativeWs.readyState === WebSocket.CONNECTING)) {
+        return;
+      }
+      isConnectingNativeWs = true;
+
+      const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const isHttps = window.location.protocol === 'https:';
+      const primaryWsUrl = `${isHttps ? 'wss:' : 'ws:'}//${window.location.host}`;
+      const fallbackWsUrl = 'ws://127.0.0.1:3000';
+
+      const targetUrl = isLocalHost ? primaryWsUrl : (checkIsStaticHost() ? fallbackWsUrl : primaryWsUrl);
+
+      try {
+        nativeWs = new WebSocket(targetUrl);
+      } catch (err) {
+        isConnectingNativeWs = false;
+        setTimeout(connectNativeServer, 2000);
+        return;
+      }
+
+      nativeWs.addEventListener('open', () => {
+        isConnectingNativeWs = false;
+        nativeWs.send(JSON.stringify({ type: 'register', clientType: 'pc_host' }));
+        updateWsIndicator(true);
+      });
+
+      nativeWs.addEventListener('close', () => {
+        isConnectingNativeWs = false;
+        nativeWs = null;
+        updateWsIndicator(false);
+        setTimeout(connectNativeServer, 2000);
+      });
+
+      nativeWs.addEventListener('error', () => {
+        isConnectingNativeWs = false;
+      });
+    }
+
+    function sendToNativeServer(payload) {
+      const msg = typeof payload === 'string' ? payload : JSON.stringify(payload);
+      let sent = false;
+
+      // 1. 専用Native OS WebSocket接続
+      if (nativeWs && nativeWs.readyState === WebSocket.OPEN) {
+        nativeWs.send(msg);
+        sent = true;
+      }
+      // 2. 汎用メインWebSocket接続
+      if (socket && socket.readyState === WebSocket.OPEN && socket !== nativeWs) {
+        socket.send(msg);
+        sent = true;
+      }
+
+      if (!sent) {
+        connectNativeServer();
+      }
+      return sent;
+    }
+
+    // ホスト側でのコマンド・マウス操作受信処理 (Win32 Native API へ完全直結)
     function handleIncomingPeerData(data) {
       if (!data) return;
+
+      // 1. スライド操作コマンド (OSの最前面PowerPoint / Googleスライド / PDF送り)
       if (data.type === 'command') {
         if (data.action === 'next') {
           currentSlide++;
-          // PCブラウザ上で右矢印キーイベントを発火（スライド・PDFを次へ送る）
-          window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', keyCode: 39, bubbles: true }));
-          window.dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowRight', keyCode: 39, bubbles: true }));
         } else if (data.action === 'prev') {
           currentSlide = Math.max(1, currentSlide - 1);
-          // PCブラウザ上で左矢印キーイベントを発火（スライド・PDFを前へ戻す）
-          window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', keyCode: 37, bubbles: true }));
-          window.dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowLeft', keyCode: 37, bubbles: true }));
         }
         updateHostDisplay();
         sendPeerMessage({ type: 'sync_state', slide: currentSlide });
-      } else if (data.type === 'mouse_move') {
-        if (laserPointer) {
-          laserPointer.classList.add('active');
-          pointerX = Math.max(12, Math.min(window.innerWidth - 12, pointerX + (data.dx || 0)));
-          pointerY = Math.max(12, Math.min(window.innerHeight - 12, pointerY + (data.dy || 0)));
-          laserPointer.style.left = `${pointerX}px`;
-          laserPointer.style.top = `${pointerY}px`;
 
-          clearTimeout(pointerHideTimeout);
-          pointerHideTimeout = setTimeout(() => {
-            if (laserPointer) laserPointer.classList.remove('active');
-          }, 3000);
-        }
-        // ローカルサーバー（server.js）が稼働していればOS物理マウスにも連携
-        if (socket && socket.readyState === WebSocket.OPEN) {
-          socket.send(JSON.stringify(data));
-        }
-      } else if (data.type === 'mouse_click') {
-        if (laserPointer) {
-          laserPointer.classList.add('clicking');
-          setTimeout(() => { if (laserPointer) laserPointer.classList.remove('clicking'); }, 150);
-        }
-        if (socket && socket.readyState === WebSocket.OPEN) {
-          socket.send(JSON.stringify(data));
-        }
-      } else if (data.type === 'mouse_scroll' || data.type === 'mouse_drag' || data.type === 'clipboard') {
-        if (socket && socket.readyState === WebSocket.OPEN) {
-          socket.send(JSON.stringify(data));
-        }
+        // Win32 Nativeキーストローク（keybd_event）を確実に実行
+        sendToNativeServer(data);
+      }
+      // 2. OS物理マウスカーソル移動 (Win32 mouse_event 直結)
+      else if (data.type === 'mouse_move') {
+        sendToNativeServer(data);
+      }
+      // 3. マウスクリック (Win32 mouse_event 直結)
+      else if (data.type === 'mouse_click') {
+        sendToNativeServer(data);
+      }
+      // 4. マウスドラッグ・スクロール・クリップボード・キーボード
+      else if (data.type === 'mouse_scroll' || data.type === 'mouse_drag' || 
+                 data.type === 'clipboard' || data.type === 'keyboard_text' || 
+                 data.type === 'keyboard_key') {
+        sendToNativeServer(data);
       }
     }
 
@@ -3100,6 +2935,7 @@
         currentSlide = Math.max(1, currentSlide - 1);
         updateHostDisplay();
         sendPeerMessage({ type: 'sync_state', slide: currentSlide });
+        sendToNativeServer({ type: 'command', action: 'prev' });
       });
     }
     if (btnHostNext) {
@@ -3107,6 +2943,7 @@
         currentSlide++;
         updateHostDisplay();
         sendPeerMessage({ type: 'sync_state', slide: currentSlide });
+        sendToNativeServer({ type: 'command', action: 'next' });
       });
     }
 
@@ -3122,6 +2959,7 @@
       }, 2000);
       connectWebSocket();
     }
+    connectNativeServer();
     initWebRTCPeer();
     requestWakeLock();
   </script>
