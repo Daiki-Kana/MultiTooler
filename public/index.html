@@ -2672,50 +2672,24 @@
 
     // WebRTC 内部接続統計 (getStats) による高精度なローカルWi-Fi直接通信のリアルタイム自動判定
     async function detectActualRouteType() {
-      // 1. ローカルホストまたはローカルIPアクセス時
+      // 1. ローカルホストまたはローカルIPアクセス時（ホストPC、または同一LAN IP直結時）
       const host = window.location.hostname;
       if (host === 'localhost' || host === '127.0.0.1' || /^192\.168\./.test(host) || /^10\./.test(host)) {
         return 'wifi';
       }
 
-      // 2. ホストPCのローカルIPに対する同一Wi-Fi高速プローブ (同一LAN内なら即座に疎通)
-      if (window.__hostLanIp) {
-        try {
-          const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), 400);
-          await fetch(`http://${window.__hostLanIp}:3000/api/info`, {
-            signal: controller.signal,
-            mode: 'no-cors'
-          });
-          clearTimeout(timer);
-          window.__syncedRouteType = 'wifi';
-          return 'wifi';
-        } catch(e) {}
-      }
-
-      // 3. ホストPCから同期された確定ルートタイプがあれば最優先採用
+      // 2. ホストPCから同期されたルートタイプがあれば最優先採用
       if (window.__syncedRouteType) {
         return window.__syncedRouteType;
       }
 
-      // 4. WebRTC P2P ICE Candidate Pair の詳細検査 (mDNS・host candidate・ローカルIP対応)
+      // 3. WebRTC P2P ICE Candidate Pair の直接通信検査 (非リレー判定)
       const activeConn = extractRtcPeerConnection();
       if (activeConn && activeConn.getStats) {
         try {
           const stats = await activeConn.getStats();
-          let isDirectLocal = false;
-
-          const isLocalCandidate = (cand) => {
-            if (!cand) return false;
-            // 'host' candidate はLAN内部直接通信
-            if (cand.candidateType === 'host') return true;
-            const addr = cand.address || cand.ip || '';
-            // mDNS 匿名化アドレス (.local) は同一LAN端末同士の直接交換
-            if (addr.endsWith('.local')) return true;
-            // プライベートIPv4 (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
-            if (/^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(addr)) return true;
-            return false;
-          };
+          let hasDirectCandidatePair = false;
+          let isRelayPair = false;
 
           stats.forEach(report => {
             if (report.type === 'candidate-pair') {
@@ -2724,23 +2698,37 @@
                 const localCand = stats.get(report.localCandidateId);
                 const remoteCand = stats.get(report.remoteCandidateId);
                 if (localCand && remoteCand) {
-                  if (isLocalCandidate(localCand) && isLocalCandidate(remoteCand)) {
-                    isDirectLocal = true;
+                  // クラウド中継サーバー（TURNリレー）経由の場合のみ「クラウド」
+                  if (localCand.candidateType === 'relay' || remoteCand.candidateType === 'relay') {
+                    isRelayPair = true;
+                  } else {
+                    // host または srflx（同一ルーターNAT直結）によるダイレクトP2P通信
+                    hasDirectCandidatePair = true;
                   }
                 }
               }
             }
           });
 
-          if (isDirectLocal) return 'wifi';
+          if (hasDirectCandidatePair && !isRelayPair) {
+            return 'wifi';
+          }
         } catch (e) {}
       }
 
-      // 5. WebSocket 接続先判定
+      // 4. WebSocket 接続先判定
       if (socket && socket.readyState === WebSocket.OPEN && socket.url) {
         if (/127\.0\.0\.1|localhost|192\.168\.|10\./.test(socket.url)) {
           return 'wifi';
         }
+      }
+
+      // 5. WebRTC DataChannel がアクティブで通信可能な場合
+      // (設定されているのはSTUNサーバーのみであり、確立されたP2P接続は直接通信)
+      const isClientPeerActive = typeof peerConn !== 'undefined' && peerConn && peerConn.open;
+      const isHostPeerActive = typeof peerConnections !== 'undefined' && peerConnections && peerConnections.length > 0;
+      if (isClientPeerActive || isHostPeerActive) {
+        return 'wifi';
       }
 
       return 'cloud';
