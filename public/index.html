@@ -167,36 +167,52 @@
     .connection-pill[data-route="cloud"] .route-wifi { display: none; }
     .connection-pill[data-route="cloud"] .route-cloud { display: inline-flex; }
 
-    /* 接続トースト (スマホとPCのワイヤー接続アニメーション) */
+    /* 接続トースト (画面中央の大型プレミアム・モーショングラフィックス) */
     .conn-toast {
       position: fixed;
-      top: 18px;
+      top: 50%;
       left: 50%;
-      transform: translateX(-50%) translateY(-65px) scale(0.9);
-      background: #111111;
+      transform: translate(-50%, -50%) scale(0.85);
+      background: rgba(14, 14, 16, 0.96);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
       color: #ffffff;
-      padding: 10px 20px;
-      border-radius: 9999px;
+      padding: 24px 32px 20px 32px;
+      border-radius: 28px;
       z-index: 999999;
       pointer-events: none;
       opacity: 0;
       transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease;
-      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.22);
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.38);
       display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 12px;
+      gap: 16px;
       border: none;
+      min-width: 280px;
     }
 
     .conn-toast.show {
-      transform: translateX(-50%) translateY(0) scale(1);
+      transform: translate(-50%, -50%) scale(1);
       opacity: 1;
+    }
+
+    .toast-anim-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      width: 100%;
     }
 
     .toast-node {
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.08);
       color: #ffffff;
       transition: transform 0.3s ease;
     }
@@ -205,16 +221,17 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      flex: 1;
     }
 
-    /* SVGワイヤー線アニメーション (左から右へ伸びる) */
+    /* SVGワイヤー線アニメーション (左から右へシュッと伸びる) */
     .wire-line {
       stroke: #ffffff;
-      stroke-width: 2.2;
+      stroke-width: 3;
       stroke-linecap: round;
-      stroke-dasharray: 80;
-      stroke-dashoffset: 80;
-      transition: stroke-dashoffset 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      stroke-dasharray: 120;
+      stroke-dashoffset: 120;
+      transition: stroke-dashoffset 0.6s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     .conn-toast.show .wire-line {
@@ -225,46 +242,63 @@
       fill: #34c759;
       opacity: 0;
       transform: scale(0);
-      transform-origin: 35px 10px;
-      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0.35s;
+      transform-origin: 50px 12px;
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1) 0.4s;
     }
 
     .conn-toast.show .wire-pulse-dot {
       opacity: 1;
-      transform: scale(1);
+      transform: scale(1.4);
     }
 
-    /* ローカル直接接続モード (スマホ ─── PC) */
+    /* ローカル直接接続モード (スマホ ────── PC) */
     .conn-toast[data-mode="wifi"] .wire-direct {
       display: flex;
       align-items: center;
     }
     .conn-toast[data-mode="wifi"] .wire-cloud-wrap {
-      display: none;
+      display: none !important;
     }
 
-    /* クラウド中継接続モード (スマホ ─── 雲 ─── PC) */
+    /* クラウド中継接続モード (スマホ ── 雲 ── PC) */
     .conn-toast[data-mode="cloud"] .wire-direct {
-      display: none;
+      display: none !important;
     }
     .conn-toast[data-mode="cloud"] .wire-cloud-wrap {
       display: flex;
       align-items: center;
-      gap: 3px;
+      gap: 4px;
     }
 
     .toast-cloud-node {
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.08);
       color: #8e8e93;
-      transform: scale(0.8);
-      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.15s, color 0.4s ease 0.25s;
+      transform: scale(0.85);
+      transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.2s, color 0.45s ease 0.3s;
     }
 
     .conn-toast.show .toast-cloud-node {
       transform: scale(1);
       color: #ffffff;
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .toast-label-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-family);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      color: #ffffff;
+      text-transform: uppercase;
     }
 
     .toast-badge-check {
@@ -278,7 +312,7 @@
       color: #ffffff;
       opacity: 0;
       transform: scale(0);
-      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0.45s;
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1) 0.5s;
     }
 
     .conn-toast.show .toast-badge-check {
@@ -1096,57 +1130,61 @@
 
   <div id="flashOverlay" class="flash-overlay"></div>
   
-  <!-- Connection Toast (Aesthetic Floating Pill) -->
-  <!-- Connection Toast (Phone to PC Wire Link Animation) -->
+  <!-- Connection Modal Toast (Phone to PC Wire Link Animation, Centered & Dynamic) -->
   <div id="connectionToast" class="conn-toast" data-mode="wifi" aria-live="polite">
-    <!-- Phone Node -->
-    <div class="toast-node toast-phone" title="Smartphone">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
-        <line x1="12" y1="18" x2="12.01" y2="18"></line>
-      </svg>
-    </div>
-
-    <!-- Wire Animation Area -->
-    <div class="toast-wire-area" id="toastWireArea">
-      <!-- Direct Wire (Local Wi-Fi) -->
-      <div class="wire-direct">
-        <svg class="wire-svg" viewBox="0 0 70 20" width="70" height="20">
-          <line x1="0" y1="10" x2="70" y2="10" class="wire-line wire-line-direct"></line>
-          <circle cx="35" cy="10" r="3" class="wire-pulse-dot"></circle>
+    <div class="toast-anim-row">
+      <!-- Phone Node -->
+      <div class="toast-node toast-phone" title="Smartphone">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+          <line x1="12" y1="18" x2="12.01" y2="18"></line>
         </svg>
       </div>
 
-      <!-- Via Cloud Wire (Internet / Tunnel) -->
-      <div class="wire-cloud-wrap">
-        <svg class="wire-svg" viewBox="0 0 28 20" width="28" height="20">
-          <line x1="0" y1="10" x2="28" y2="10" class="wire-line"></line>
-        </svg>
-        <div class="toast-cloud-node" title="Cloud Relay">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+      <!-- Wire Animation Area -->
+      <div class="toast-wire-area" id="toastWireArea">
+        <!-- Direct Wire (Local Wi-Fi) -->
+        <div class="wire-direct">
+          <svg class="wire-svg" viewBox="0 0 100 24" width="100" height="24">
+            <line x1="0" y1="12" x2="100" y2="12" class="wire-line wire-line-direct"></line>
+            <circle cx="50" cy="12" r="4" class="wire-pulse-dot"></circle>
           </svg>
         </div>
-        <svg class="wire-svg" viewBox="0 0 28 20" width="28" height="20">
-          <line x1="0" y1="10" x2="28" y2="10" class="wire-line"></line>
+
+        <!-- Via Cloud Wire (Internet / Relay) -->
+        <div class="wire-cloud-wrap">
+          <svg class="wire-svg" viewBox="0 0 34 24" width="34" height="24">
+            <line x1="0" y1="12" x2="34" y2="12" class="wire-line"></line>
+          </svg>
+          <div class="toast-cloud-node" title="Cloud Relay">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+            </svg>
+          </div>
+          <svg class="wire-svg" viewBox="0 0 34 24" width="34" height="24">
+            <line x1="0" y1="12" x2="34" y2="12" class="wire-line"></line>
+          </svg>
+        </div>
+      </div>
+
+      <!-- PC Node -->
+      <div class="toast-node toast-pc" title="Computer">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+          <line x1="8" y1="21" x2="16" y2="21"></line>
+          <line x1="12" y1="17" x2="12" y2="21"></line>
         </svg>
       </div>
     </div>
 
-    <!-- PC Node -->
-    <div class="toast-node toast-pc" title="Computer">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="2" y="3" width="20" height="14" rx="2"></rect>
-        <line x1="8" y1="21" x2="16" y2="21"></line>
-        <line x1="12" y1="17" x2="12" y2="21"></line>
-      </svg>
-    </div>
-
-    <!-- Verified Check -->
-    <div class="toast-badge-check">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="20 6 9 17 4 12"></polyline>
-      </svg>
+    <!-- Label & Check Row -->
+    <div class="toast-label-row">
+      <span id="toastModeLabel">LOCAL DIRECT LINK</span>
+      <div class="toast-badge-check">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </div>
     </div>
   </div>
 
@@ -1719,14 +1757,7 @@
       switchView('viewToolMenu');
     });
 
-    function sendToNativeServer(payload) {
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify(payload));
-      }
-      if (typeof localBridgeWs !== 'undefined' && localBridgeWs && localBridgeWs.readyState === WebSocket.OPEN) {
-        localBridgeWs.send(JSON.stringify(payload));
-      }
-    }
+
 
     // --------------------------------------------------------------------------
     // Joystick Mouse Control (Portrait, Joycon-Style) & Actions
@@ -1916,19 +1947,18 @@
 
     // アニメーションフレーム同期ループ (ディスプレイ更新周期に合わせて一定間隔で滑らかに送信)
     function trackpadSyncLoop() {
-      // 整数ピクセル分を取り出して送信
-      const moveX = Math.trunc(accumX);
-      const moveY = Math.trunc(accumY);
+      // 整数ピクセル分を取り出して送信（roundで微小移動も直ちに送信しカクつき排除）
+      const moveX = Math.round(accumX);
+      const moveY = Math.round(accumY);
 
       if (moveX !== 0 || moveY !== 0) {
         sendWsPayload({ type: 'mouse_move', dx: moveX, dy: moveY });
-        // 送信した整数分のみを引き、1px未満の端数は次フレームへ完全に保持！
         accumX -= moveX;
         accumY -= moveY;
       }
 
       // 2本指スクロール
-      const scrollY = Math.trunc(accumScroll);
+      const scrollY = Math.round(accumScroll);
       if (scrollY !== 0) {
         sendWsPayload({ type: 'mouse_scroll', delta: scrollY });
         accumScroll -= scrollY;
@@ -2640,6 +2670,10 @@
       if (!toast) return;
 
       toast.setAttribute('data-mode', routeType);
+      const label = document.getElementById('toastModeLabel');
+      if (label) {
+        label.textContent = (routeType === 'wifi') ? 'LOCAL DIRECT LINK' : 'CLOUD RELAY LINK';
+      }
 
       // ワイヤーアニメーションのリセット & 再発火
       toast.classList.remove('show');
@@ -2651,7 +2685,7 @@
       clearTimeout(toastTimeout);
       toastTimeout = setTimeout(() => {
         toast.classList.remove('show');
-      }, 2600);
+      }, 2800);
     }
 
     async function updateWsIndicator(isConnected) {
@@ -2684,16 +2718,27 @@
 
       // 未接続から接続へ変化した瞬間におしゃれなアニメーションを1回発火
       if (connected && !lastConnectedState) {
-        triggerConnectionAnimation(currentRouteType);
-        // ICEペアが完全確立する500ms後に再確認して表示を自動同期
+        // ICE candidate pair の確定を少し待ってから高精度に判定して発火
+        setTimeout(async () => {
+          currentRouteType = await detectActualRouteType();
+          pills.forEach(p => p && p.setAttribute('data-route', currentRouteType));
+          triggerConnectionAnimation(currentRouteType);
+        }, 180);
+
+        // さらにICEペアが完全確立する600ms後に再確認して表示を自動同期
         setTimeout(async () => {
           const freshRoute = await detectActualRouteType();
           if (freshRoute !== currentRouteType) {
             currentRouteType = freshRoute;
             pills.forEach(p => p && p.setAttribute('data-route', currentRouteType));
-            toast.setAttribute('data-mode', currentRouteType);
+            const toast = document.getElementById('connectionToast');
+            if (toast) {
+              toast.setAttribute('data-mode', currentRouteType);
+              const label = document.getElementById('toastModeLabel');
+              if (label) label.textContent = (currentRouteType === 'wifi') ? 'LOCAL DIRECT LINK' : 'CLOUD RELAY LINK';
+            }
           }
-        }, 500);
+        }, 600);
       }
       lastConnectedState = connected;
 
@@ -3254,15 +3299,18 @@
         sent = true;
       }
 
-      // 3. HTTP POST フォールバック (Mixed Content対策 & 確実なローカルOS配信)
-      try {
-        fetch('http://127.0.0.1:3000/api/native', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: msg,
-          mode: 'cors'
-        }).catch(() => {});
-      } catch (e) {}
+      // 3. HTTP POST フォールバック (command/clipboard/key のみ。高頻度マウス移動では絶対にfetchしない！)
+      const isMouseStream = payload && (payload.type === 'mouse_move' || payload.type === 'mouse_scroll');
+      if (!isMouseStream && !sent) {
+        try {
+          fetch('http://127.0.0.1:3000/api/native', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: msg,
+            mode: 'cors'
+          }).catch(() => {});
+        } catch (e) {}
+      }
 
       if (!sent && (!nativeWs || nativeWs.readyState !== WebSocket.CONNECTING)) {
         connectNativeServer();
