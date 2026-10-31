@@ -2678,12 +2678,27 @@
         return 'wifi';
       }
 
-      // 2. ホストPCから同期されたルートタイプがあれば最優先採用
+      // 2. ホストPCのローカルIPに対する同一Wi-Fi高速プローブ (同一LAN内なら即座に疎通)
+      if (window.__hostLanIp) {
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 400);
+          await fetch(`http://${window.__hostLanIp}:3000/api/info`, {
+            signal: controller.signal,
+            mode: 'no-cors'
+          });
+          clearTimeout(timer);
+          window.__syncedRouteType = 'wifi';
+          return 'wifi';
+        } catch(e) {}
+      }
+
+      // 3. ホストPCから同期された確定ルートタイプがあれば最優先採用
       if (window.__syncedRouteType) {
         return window.__syncedRouteType;
       }
 
-      // 3. WebRTC P2P ICE Candidate Pair の詳細検査 (mDNS・host candidate・ローカルIP対応)
+      // 4. WebRTC P2P ICE Candidate Pair の詳細検査 (mDNS・host candidate・ローカルIP対応)
       const activeConn = extractRtcPeerConnection();
       if (activeConn && activeConn.getStats) {
         try {
@@ -2721,25 +2736,11 @@
         } catch (e) {}
       }
 
-      // 4. WebSocket 接続先判定
+      // 5. WebSocket 接続先判定
       if (socket && socket.readyState === WebSocket.OPEN && socket.url) {
         if (/127\.0\.0\.1|localhost|192\.168\.|10\./.test(socket.url)) {
           return 'wifi';
         }
-      }
-
-      // 5. ローカルLAN高速プローブ (同一Wi-Fi判定: PCのローカルIPが判明している場合)
-      if (window.__hostLanIp) {
-        try {
-          const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), 350);
-          await fetch(`http://${window.__hostLanIp}:3000/api/info`, {
-            signal: controller.signal,
-            mode: 'no-cors'
-          });
-          clearTimeout(timer);
-          return 'wifi';
-        } catch(e) {}
       }
 
       return 'cloud';
@@ -2772,35 +2773,30 @@
     }
 
     // スマホとPCのペアリングが成立した瞬間のみに発火させる（ページ初期読込時の誤発火を完全防止）
-    async function triggerPairingAnimation() {
+    async function triggerPairingAnimation(presetRoute) {
       const now = Date.now();
-      // ページ読み込み後1.2秒以内の初期化ガード、または直近4秒以内の連続発火を抑制
-      if (now - pageLoadTimestamp < 1200) return;
-      if (now - lastPairingAnimTime < 4000) return;
+      // ページ読み込み後1.0秒以内の初期化ガード、または直近3.5秒以内の連続発火を抑制
+      if (now - pageLoadTimestamp < 1000) return;
+      if (now - lastPairingAnimTime < 3500) return;
       lastPairingAnimTime = now;
 
-      // ICE candidate pair の確定を少し待ってから高精度に判定して発火
-      setTimeout(async () => {
-        currentRouteType = await detectActualRouteType();
-        const pills = [
-          document.getElementById('menuConnPill'),
-          document.getElementById('remoteConnPill'),
-          document.getElementById('trackpadConnPill')
-        ];
-        pills.forEach(p => p && p.setAttribute('data-route', currentRouteType));
-        triggerConnectionAnimation(currentRouteType);
-      }, 180);
+      // 確定ルートがあればそれを即座に使用、なければ最新判定を実行
+      const resolved = presetRoute || await detectActualRouteType();
+      currentRouteType = resolved;
 
-      // さらにICEペアが完全確立する600ms後に再確認して表示を同期
+      const pills = [
+        document.getElementById('menuConnPill'),
+        document.getElementById('remoteConnPill'),
+        document.getElementById('trackpadConnPill')
+      ];
+      pills.forEach(p => p && p.setAttribute('data-route', currentRouteType));
+      triggerConnectionAnimation(currentRouteType);
+
+      // さらにICEペアが完全確立する700ms後にも再確認して表示を同期
       setTimeout(async () => {
         const freshRoute = await detectActualRouteType();
         if (freshRoute !== currentRouteType) {
           currentRouteType = freshRoute;
-          const pills = [
-            document.getElementById('menuConnPill'),
-            document.getElementById('remoteConnPill'),
-            document.getElementById('trackpadConnPill')
-          ];
           pills.forEach(p => p && p.setAttribute('data-route', currentRouteType));
           const toast = document.getElementById('connectionToast');
           if (toast) {
@@ -2809,7 +2805,7 @@
             if (label) label.textContent = (currentRouteType === 'wifi') ? 'LOCAL DIRECT LINK' : 'CLOUD RELAY LINK';
           }
         }
-      }, 600);
+      }, 700);
     }
 
     async function updateWsIndicator(isConnected) {
@@ -3281,7 +3277,7 @@
         conn.on('open', async () => {
           updateWsIndicator(true);
           const hostRoute = await detectActualRouteType();
-          const lanIp = (serverInfo && (serverInfo.localIp || serverInfo.ip)) ? (serverInfo.localIp || serverInfo.ip) : '';
+          const lanIp = (serverInfo && (serverInfo.primaryIp || serverInfo.localIp || serverInfo.ip)) ? (serverInfo.primaryIp || serverInfo.localIp || serverInfo.ip) : '';
           conn.send({ 
             type: 'sync_state', 
             slide: currentSlide, 
@@ -3289,7 +3285,7 @@
             routeType: hostRoute,
             hostLanIp: lanIp
           });
-          triggerPairingAnimation();
+          triggerPairingAnimation(hostRoute);
         });
 
         conn.on('data', (data) => {
@@ -3321,14 +3317,22 @@
         const conn = peer.connect(targetHostId, { reliable: true });
         peerConn = conn;
 
+        let clientPairingTimer = null;
+
         conn.on('open', () => {
           console.log('[WebRTC Client] ホストとP2P接続確立！');
           updateWsIndicator(true);
-          triggerPairingAnimation();
           if (navigator.vibrate) try { navigator.vibrate([60, 40, 60]); } catch(e) {}
+
+          // ホストからの sync_state (確定ルート・LAN IP) 到着を少し待つ
+          clearTimeout(clientPairingTimer);
+          clientPairingTimer = setTimeout(async () => {
+            const fallbackRoute = await detectActualRouteType();
+            triggerPairingAnimation(fallbackRoute);
+          }, 450);
         });
 
-        conn.on('data', (data) => {
+        conn.on('data', async (data) => {
           if (data && data.type === 'sync_state') {
             if (data.slide) currentSlide = data.slide;
             if (typeof data.isRunning === 'boolean') {
@@ -3336,22 +3340,12 @@
               else if (!data.isRunning && isTimerRunning) pauseTimer();
             }
             if (data.hostLanIp) window.__hostLanIp = data.hostLanIp;
-            if (data.routeType) {
-              window.__syncedRouteType = data.routeType;
-              currentRouteType = data.routeType;
-              const pills = [
-                document.getElementById('menuConnPill'),
-                document.getElementById('remoteConnPill'),
-                document.getElementById('trackpadConnPill')
-              ];
-              pills.forEach(p => p && p.setAttribute('data-route', currentRouteType));
-              const toast = document.getElementById('connectionToast');
-              if (toast) {
-                toast.setAttribute('data-mode', currentRouteType);
-                const label = document.getElementById('toastModeLabel');
-                if (label) label.textContent = (currentRouteType === 'wifi') ? 'LOCAL DIRECT LINK' : 'CLOUD RELAY LINK';
-              }
-            }
+            if (data.routeType) window.__syncedRouteType = data.routeType;
+
+            // ホストから同期データが届いたらタイマーを解除し、確定ルートで即時アニメーション発火！
+            clearTimeout(clientPairingTimer);
+            const resolved = await detectActualRouteType();
+            triggerPairingAnimation(resolved);
           }
         });
 
