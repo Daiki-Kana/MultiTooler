@@ -157,6 +157,31 @@
       align-items: center;
     }
 
+    /* レーザーポインター / バーチャルカーソル (完全ボーダーレス・高視認性) */
+    #laserPointer {
+      display: none;
+      position: fixed;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255, 30, 30, 0.95) 0%, rgba(255, 30, 30, 0.3) 60%, transparent 100%);
+      box-shadow: 0 0 16px rgba(255, 30, 30, 0.8);
+      pointer-events: none;
+      z-index: 9999;
+      transform: translate(-50%, -50%);
+      transition: width 0.08s ease, height 0.08s ease;
+    }
+
+    #laserPointer.active {
+      display: block;
+    }
+
+    #laserPointer.clicking {
+      width: 34px;
+      height: 34px;
+      box-shadow: 0 0 24px rgba(255, 30, 30, 1);
+    }
+
     /* --------------------------------------------------------------------------
        Top Bar (Icon Buttons, Zero Borders)
        -------------------------------------------------------------------------- */
@@ -1019,6 +1044,7 @@
   </video>
 
   <div id="flashOverlay" class="flash-overlay"></div>
+  <div id="laserPointer"></div>
 
   <!-- 0. PC Host Presentation View (PCで開いた時のメイン画面) -->
   <div id="viewHost" class="view-container">
@@ -2328,7 +2354,13 @@
 
     async function loadServerInfo() {
       const cfg = getTargetServerConfig();
+      const isStaticHost = checkIsStaticHost();
       const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+      // 静的ホスト（Vercel）でカスタムサーバーが指定されていない場合はAPI取得をスキップ
+      if (isStaticHost && !cfg.hasCustomServer) {
+        return;
+      }
 
       // バックエンドAPIから情報取得
       try {
@@ -2441,7 +2473,17 @@
 
     function connectWebSocket() {
       const cfg = getTargetServerConfig();
-      socket = new WebSocket(cfg.wsUrl);
+      const isStaticHost = checkIsStaticHost();
+      // 静的ホスト（Vercel）でカスタムサーバー（?server=）が指定されていない場合はWebSocketを起動しない（P2Pを使用）
+      if (isStaticHost && !cfg.hasCustomServer) {
+        return;
+      }
+
+      try {
+        socket = new WebSocket(cfg.wsUrl);
+      } catch(e) {
+        return;
+      }
 
       socket.addEventListener('open', () => {
         updateWsIndicator(true);
@@ -2469,7 +2511,9 @@
 
       socket.addEventListener('close', () => {
         updateWsIndicator(false);
-        setTimeout(connectWebSocket, 2000);
+        if (!isStaticHost || cfg.hasCustomServer) {
+          setTimeout(connectWebSocket, 2000);
+        }
       });
 
       socket.addEventListener('error', () => {});
@@ -2482,7 +2526,12 @@
     }
 
     function updateWsIndicator(isConnected) {
-      const dotClass = isConnected ? 'status-dot active' : 'status-dot warning';
+      const isPeerActive = (typeof isPeerHost !== 'undefined' && isPeerHost && peerConnections && peerConnections.length > 0) || 
+                           (typeof peerConn !== 'undefined' && peerConn && peerConn.open);
+      const isWsActive = socket && socket.readyState === WebSocket.OPEN;
+      const connected = (typeof isConnected === 'boolean' && isConnected) || isPeerActive || isWsActive;
+
+      const dotClass = connected ? 'status-dot active' : 'status-dot warning';
       if (menuWsDot) menuWsDot.className = dotClass;
       if (remoteWsDot) remoteWsDot.className = dotClass;
       if (hostWsDot) hostWsDot.className = dotClass;
@@ -2491,9 +2540,7 @@
 
       if (unconnectedNotice) {
         const isStaticHost = checkIsStaticHost();
-        const isPeerActive = (typeof isPeerHost !== 'undefined' && isPeerHost && peerConnections && peerConnections.length > 0) || 
-                             (typeof peerConn !== 'undefined' && peerConn && peerConn.open);
-        unconnectedNotice.style.display = (!isConnected && !isPeerActive && isStaticHost) ? 'flex' : 'none';
+        unconnectedNotice.style.display = (!connected && isStaticHost) ? 'flex' : 'none';
       }
     }
 
@@ -2984,7 +3031,12 @@
       });
     }
 
-    // ホスト側でのコマンド受信処理
+    let pointerX = window.innerWidth / 2;
+    let pointerY = window.innerHeight / 2;
+    let pointerHideTimeout = null;
+    const laserPointer = document.getElementById('laserPointer');
+
+    // ホスト側でのコマンド・マウス操作受信処理
     function handleIncomingPeerData(data) {
       if (!data) return;
       if (data.type === 'command') {
@@ -3001,6 +3053,35 @@
         }
         updateHostDisplay();
         sendPeerMessage({ type: 'sync_state', slide: currentSlide });
+      } else if (data.type === 'mouse_move') {
+        if (laserPointer) {
+          laserPointer.classList.add('active');
+          pointerX = Math.max(12, Math.min(window.innerWidth - 12, pointerX + (data.dx || 0)));
+          pointerY = Math.max(12, Math.min(window.innerHeight - 12, pointerY + (data.dy || 0)));
+          laserPointer.style.left = `${pointerX}px`;
+          laserPointer.style.top = `${pointerY}px`;
+
+          clearTimeout(pointerHideTimeout);
+          pointerHideTimeout = setTimeout(() => {
+            if (laserPointer) laserPointer.classList.remove('active');
+          }, 3000);
+        }
+        // ローカルサーバー（server.js）が稼働していればOS物理マウスにも連携
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify(data));
+        }
+      } else if (data.type === 'mouse_click') {
+        if (laserPointer) {
+          laserPointer.classList.add('clicking');
+          setTimeout(() => { if (laserPointer) laserPointer.classList.remove('clicking'); }, 150);
+        }
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify(data));
+        }
+      } else if (data.type === 'mouse_scroll' || data.type === 'mouse_drag' || data.type === 'clipboard') {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify(data));
+        }
       }
     }
 
@@ -3031,12 +3112,16 @@
 
     // Initial
     renderTimerUI();
-    loadServerInfo();
-    const infoInterval = setInterval(async () => {
-      await loadServerInfo();
-      if (serverInfo && serverInfo.hasTunnel) clearInterval(infoInterval);
-    }, 2000);
-    connectWebSocket();
+    const isStatic = checkIsStaticHost();
+    const cfg = getTargetServerConfig();
+    if (!isStatic || cfg.hasCustomServer) {
+      loadServerInfo();
+      const infoInterval = setInterval(async () => {
+        await loadServerInfo();
+        if (serverInfo && serverInfo.hasTunnel) clearInterval(infoInterval);
+      }, 2000);
+      connectWebSocket();
+    }
     initWebRTCPeer();
     requestWakeLock();
   </script>
