@@ -256,17 +256,10 @@
       stroke-dashoffset: 0;
     }
 
-    .wire-pulse-dot {
-      fill: #34c759;
-      opacity: 0;
-      transform: scale(0);
-      transform-origin: 50px 12px;
-      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1) 0.4s;
-    }
-
-    .conn-toast.show .wire-pulse-dot {
-      opacity: 1;
-      transform: scale(1.4);
+    .wire-line.wire-line-direct {
+      stroke: #ffffff;
+      filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8));
+      transition: stroke-dashoffset 0.45s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     /* ローカル直接接続モード (PC ────── スマホ) */
@@ -1182,7 +1175,6 @@
         <div class="wire-direct">
           <svg class="wire-svg" viewBox="0 0 100 24" width="100" height="24">
             <line x1="0" y1="12" x2="100" y2="12" class="wire-line wire-line-direct"></line>
-            <circle cx="50" cy="12" r="4" class="wire-pulse-dot"></circle>
           </svg>
         </div>
 
@@ -2649,6 +2641,36 @@
     let toastTimeout = null;
     let currentRouteType = 'cloud'; // 'wifi' または 'cloud'
 
+    // PeerJS DataConnection から RTCPeerConnection を確実に抽出するヘルパー
+    function extractRtcPeerConnection() {
+      if (typeof peerConn !== 'undefined' && peerConn) {
+        if (peerConn.peerConnection) return peerConn.peerConnection;
+        if (peerConn._peerConnection) return peerConn._peerConnection;
+        if (peerConn.pc) return peerConn.pc;
+        if (peerConn._negotiator && peerConn._negotiator._pc) return peerConn._negotiator._pc;
+      }
+      if (typeof peerConnections !== 'undefined' && peerConnections && peerConnections.length > 0) {
+        for (const c of peerConnections) {
+          if (c.peerConnection) return c.peerConnection;
+          if (c._peerConnection) return c._peerConnection;
+          if (c.pc) return c.pc;
+          if (c._negotiator && c._negotiator._pc) return c._negotiator._pc;
+        }
+      }
+      if (typeof peer !== 'undefined' && peer && peer._connections) {
+        for (const k in peer._connections) {
+          const arr = peer._connections[k];
+          if (arr && arr[0]) {
+            const c = arr[0];
+            if (c.peerConnection) return c.peerConnection;
+            if (c._peerConnection) return c._peerConnection;
+            if (c.pc) return c.pc;
+          }
+        }
+      }
+      return null;
+    }
+
     // WebRTC 内部接続統計 (getStats) による高精度なローカルWi-Fi直接通信のリアルタイム自動判定
     async function detectActualRouteType() {
       // 1. ローカルホストまたはローカルIPアクセス時
@@ -2657,43 +2679,68 @@
         return 'wifi';
       }
 
-      // 2. WebRTC P2P ICE Candidate Pair の検査 (スマホとPCが同一Wi-Fiで直接パケット交換しているか)
-      const activeConn = (typeof peerConn !== 'undefined' && peerConn && peerConn.peerConnection)
-        ? peerConn.peerConnection
-        : ((typeof peerConnections !== 'undefined' && peerConnections && peerConnections.length > 0)
-          ? peerConnections[0].peerConnection
-          : null);
+      // 2. ホストPCから同期されたルートタイプがあれば最優先採用
+      if (window.__syncedRouteType) {
+        return window.__syncedRouteType;
+      }
 
+      // 3. WebRTC P2P ICE Candidate Pair の詳細検査 (mDNS・host candidate・ローカルIP対応)
+      const activeConn = extractRtcPeerConnection();
       if (activeConn && activeConn.getStats) {
         try {
           const stats = await activeConn.getStats();
           let isDirectLocal = false;
+
+          const isLocalCandidate = (cand) => {
+            if (!cand) return false;
+            // 'host' candidate はLAN内部直接通信
+            if (cand.candidateType === 'host') return true;
+            const addr = cand.address || cand.ip || '';
+            // mDNS 匿名化アドレス (.local) は同一LAN端末同士の直接交換
+            if (addr.endsWith('.local')) return true;
+            // プライベートIPv4 (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+            if (/^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(addr)) return true;
+            return false;
+          };
+
           stats.forEach(report => {
-            if (report.type === 'candidate-pair' && report.state === 'succeeded') {
-              const localCand = stats.get(report.localCandidateId);
-              const remoteCand = stats.get(report.remoteCandidateId);
-              if (localCand && remoteCand) {
-                // 両方の candidateType が 'host' なら同一LAN直接通信
-                if (localCand.candidateType === 'host' && remoteCand.candidateType === 'host') {
-                  isDirectLocal = true;
-                }
-                // プライベートIP同士（192.168.x.x, 10.x.x.x, 172.16-31.x.x）の接続なら同一Wi-Fi
-                const isPriv = (ip) => /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(ip || '');
-                if (isPriv(localCand.address || localCand.ip) && isPriv(remoteCand.address || remoteCand.ip)) {
-                  isDirectLocal = true;
+            if (report.type === 'candidate-pair') {
+              const isSelected = report.state === 'succeeded' || report.selected || report.nominated || (report.currentRoundTripTime !== undefined);
+              if (isSelected) {
+                const localCand = stats.get(report.localCandidateId);
+                const remoteCand = stats.get(report.remoteCandidateId);
+                if (localCand && remoteCand) {
+                  if (isLocalCandidate(localCand) && isLocalCandidate(remoteCand)) {
+                    isDirectLocal = true;
+                  }
                 }
               }
             }
           });
+
           if (isDirectLocal) return 'wifi';
         } catch (e) {}
       }
 
-      // 3. WebSocket 接続先判定
+      // 4. WebSocket 接続先判定
       if (socket && socket.readyState === WebSocket.OPEN && socket.url) {
         if (/127\.0\.0\.1|localhost|192\.168\.|10\./.test(socket.url)) {
           return 'wifi';
         }
+      }
+
+      // 5. ローカルLAN高速プローブ (同一Wi-Fi判定: PCのローカルIPが判明している場合)
+      if (window.__hostLanIp) {
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 350);
+          await fetch(`http://${window.__hostLanIp}:3000/api/info`, {
+            signal: controller.signal,
+            mode: 'no-cors'
+          });
+          clearTimeout(timer);
+          return 'wifi';
+        } catch(e) {}
       }
 
       return 'cloud';
@@ -3232,10 +3279,18 @@
       peer.on('connection', (conn) => {
         console.log('[WebRTC Host] スマホリモコンが接続されました');
         peerConnections.push(conn);
-        conn.on('open', () => {
+        conn.on('open', async () => {
           updateWsIndicator(true);
+          const hostRoute = await detectActualRouteType();
+          const lanIp = (serverInfo && (serverInfo.localIp || serverInfo.ip)) ? (serverInfo.localIp || serverInfo.ip) : '';
+          conn.send({ 
+            type: 'sync_state', 
+            slide: currentSlide, 
+            isRunning: isTimerRunning,
+            routeType: hostRoute,
+            hostLanIp: lanIp
+          });
           triggerPairingAnimation();
-          conn.send({ type: 'sync_state', slide: currentSlide, isRunning: isTimerRunning });
         });
 
         conn.on('data', (data) => {
@@ -3280,6 +3335,23 @@
             if (typeof data.isRunning === 'boolean') {
               if (data.isRunning && !isTimerRunning) startTimer();
               else if (!data.isRunning && isTimerRunning) pauseTimer();
+            }
+            if (data.hostLanIp) window.__hostLanIp = data.hostLanIp;
+            if (data.routeType) {
+              window.__syncedRouteType = data.routeType;
+              currentRouteType = data.routeType;
+              const pills = [
+                document.getElementById('menuConnPill'),
+                document.getElementById('remoteConnPill'),
+                document.getElementById('trackpadConnPill')
+              ];
+              pills.forEach(p => p && p.setAttribute('data-route', currentRouteType));
+              const toast = document.getElementById('connectionToast');
+              if (toast) {
+                toast.setAttribute('data-mode', currentRouteType);
+                const label = document.getElementById('toastModeLabel');
+                if (label) label.textContent = (currentRouteType === 'wifi') ? 'LOCAL DIRECT LINK' : 'CLOUD RELAY LINK';
+              }
             }
           }
         });
