@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>ToolBox</title>
+  <link rel="icon" type="image/png" href="icon-192.png">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <meta name="apple-mobile-web-app-title" content="ToolBox">
@@ -59,14 +60,18 @@
     }
 
     /* --------------------------------------------------------------------------
-       Top Bar (Icon Buttons, Zero Borders)
+       Top Bar (Icon Buttons, Zero Borders, Safe Area Compliant)
        -------------------------------------------------------------------------- */
     .bar {
-      height: 52px;
+      height: calc(52px + env(safe-area-inset-top, 0px));
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: 0;
+      padding-left: max(16px, env(safe-area-inset-left, 16px));
+      padding-right: max(16px, env(safe-area-inset-right, 16px));
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 16px;
+      box-sizing: border-box;
       flex-shrink: 0;
     }
 
@@ -501,7 +506,8 @@
       align-items: center;
       justify-content: center;
       z-index: 300;
-      padding: 16px;
+      padding: max(16px, env(safe-area-inset-top, 16px)) max(16px, env(safe-area-inset-right, 16px)) max(16px, env(safe-area-inset-bottom, 16px)) max(16px, env(safe-area-inset-left, 16px));
+      box-sizing: border-box;
     }
 
     .modal-backdrop.active {
