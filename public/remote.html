@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="style.css">
   <script src="qrcode.min.js"></script>
   <script src="jsqr.min.js"></script>
+  <script src="peerjs.min.js"></script>
   <style>
     html, body {
       height: 100%;
@@ -49,6 +50,111 @@
 
     .view-container.active {
       display: flex;
+    }
+
+    /* --------------------------------------------------------------------------
+       Host View (PC Presentation & Big QR Receiver, Borderless)
+       -------------------------------------------------------------------------- */
+    #viewHost {
+      display: none;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      flex-direction: column;
+      background: var(--color-canvas);
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+
+    #viewHost.active {
+      display: flex;
+    }
+
+    .host-container {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      box-sizing: border-box;
+      text-align: center;
+    }
+
+    .host-card {
+      background: var(--color-surface-1);
+      border-radius: 28px;
+      padding: 36px 40px;
+      max-width: 520px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      box-sizing: border-box;
+      transition: all 0.25s ease;
+    }
+
+    .host-qr-img {
+      width: 260px;
+      height: 260px;
+      background: #ffffff;
+      padding: 12px;
+      border-radius: 20px;
+      display: block;
+      object-fit: contain;
+    }
+
+    .host-room-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--color-surface-2);
+      padding: 8px 18px;
+      border-radius: 9999px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--color-ink);
+      letter-spacing: 1px;
+    }
+
+    .host-connected-panel {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      gap: 28px;
+    }
+
+    .host-connected-panel.active {
+      display: flex;
+    }
+
+    .host-slide-number {
+      font-size: clamp(80px, 18vw, 160px);
+      font-weight: 800;
+      font-family: var(--font-mono);
+      line-height: 1;
+      letter-spacing: -3px;
+    }
+
+    .host-timer-big {
+      font-size: clamp(36px, 8vw, 68px);
+      font-weight: 700;
+      font-family: var(--font-mono);
+      color: var(--color-ink-muted);
+      letter-spacing: -1px;
+    }
+
+    .host-actions-hint {
+      display: flex;
+      gap: 16px;
+      align-items: center;
     }
 
     /* --------------------------------------------------------------------------
@@ -914,10 +1020,79 @@
 
   <div id="flashOverlay" class="flash-overlay"></div>
 
+  <!-- 0. PC Host Presentation View (PCで開いた時のメイン画面) -->
+  <div id="viewHost" class="view-container">
+    <header class="bar">
+      <div class="bar-group">
+        <button type="button" id="btnHostToRemote" class="btn-icon" aria-label="Remote Controller">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="5" y="2" width="14" height="20" rx="2"></rect>
+            <line x1="12" y1="18" x2="12.01" y2="18"></line>
+          </svg>
+        </button>
+        <span class="status-dot" id="hostWsDot"></span>
+      </div>
+
+      <div class="bar-group">
+        <!-- Fullscreen Button -->
+        <button type="button" id="btnHostFullscreen" class="btn-icon" aria-label="Fullscreen">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <polyline points="9 21 3 21 3 15"></polyline>
+            <line x1="21" y1="3" x2="14" y2="10"></line>
+            <line x1="3" y1="21" x2="10" y2="14"></line>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="host-container">
+      <!-- 待受画面 (QRコード表示) -->
+      <div class="host-card" id="hostWaitingCard">
+        <img id="hostQrImg" class="host-qr-img" src="" alt="Connect QR">
+        <div class="host-room-badge">
+          <span id="hostRoomIdText">INITIALIZING...</span>
+          <button type="button" id="btnCopyHostUrl" class="btn-icon" style="width:28px; height:28px;" aria-label="Copy Link">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- 接続完了後の大画面プレゼンモニター -->
+      <div class="host-connected-panel" id="hostConnectedPanel">
+        <div class="host-timer-big" id="hostBigTimer">00:00</div>
+        <div class="host-slide-number" id="hostSlideNum">1</div>
+        <div class="host-actions-hint">
+          <button type="button" class="btn-icon" id="btnHostPrev" style="width:52px; height:52px; background:var(--color-surface-1); border-radius:16px;" aria-label="Previous">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+          </button>
+          <button type="button" class="btn-icon" id="btnHostNext" style="width:52px; height:52px; background:var(--color-ink); color:#fff; border-radius:16px;" aria-label="Next">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+
   <!-- 1. Menu View -->
   <div id="viewToolMenu" class="view-container active">
     <header class="bar">
       <div class="bar-group">
+        <!-- Host Screen Icon Button -->
+        <button type="button" id="btnMenuHost" class="btn-icon" aria-label="PC Screen">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+        </button>
         <span class="status-dot" id="menuWsDot"></span>
       </div>
       <div class="bar-group">
@@ -1443,6 +1618,22 @@
       switchView('viewToolMenu');
     });
 
+    const btnMenuHost = document.getElementById('btnMenuHost');
+    const btnHostToRemote = document.getElementById('btnHostToRemote');
+    const btnHostFullscreen = document.getElementById('btnHostFullscreen');
+
+    if (btnMenuHost) btnMenuHost.addEventListener('click', () => switchView('viewHost'));
+    if (btnHostToRemote) btnHostToRemote.addEventListener('click', () => switchView('viewToolMenu'));
+    if (btnHostFullscreen) {
+      btnHostFullscreen.addEventListener('click', () => {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        } else {
+          document.exitFullscreen().catch(() => {});
+        }
+      });
+    }
+
     // --------------------------------------------------------------------------
     // Joystick Mouse Control (Portrait, Joycon-Style) & Actions
     // --------------------------------------------------------------------------
@@ -1468,6 +1659,9 @@
     }
 
     function sendWsPayload(payload) {
+      if (typeof sendPeerMessage === 'function') {
+        sendPeerMessage(payload);
+      }
       if (socket && socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify(payload));
       }
@@ -1956,6 +2150,11 @@
           closeCameraScanner();
           try {
             const u = new URL(detectedUrl);
+            const roomParam = u.searchParams.get('room');
+            if (roomParam) {
+              window.location.href = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(roomParam)}`;
+              return;
+            }
             const serverParam = u.searchParams.get('server');
             const targetServer = serverParam || u.origin;
             localStorage.setItem('wss_server_target', targetServer);
@@ -2286,12 +2485,15 @@
       const dotClass = isConnected ? 'status-dot active' : 'status-dot warning';
       if (menuWsDot) menuWsDot.className = dotClass;
       if (remoteWsDot) remoteWsDot.className = dotClass;
+      if (hostWsDot) hostWsDot.className = dotClass;
       const trackpadWsDot = document.getElementById('trackpadWsDot');
       if (trackpadWsDot) trackpadWsDot.className = dotClass;
 
       if (unconnectedNotice) {
         const isStaticHost = checkIsStaticHost();
-        unconnectedNotice.style.display = (!isConnected && isStaticHost) ? 'flex' : 'none';
+        const isPeerActive = (typeof isPeerHost !== 'undefined' && isPeerHost && peerConnections && peerConnections.length > 0) || 
+                             (typeof peerConn !== 'undefined' && peerConn && peerConn.open);
+        unconnectedNotice.style.display = (!isConnected && !isPeerActive && isStaticHost) ? 'flex' : 'none';
       }
     }
 
@@ -2408,13 +2610,18 @@
       flashOverlay.className = 'flash-overlay active';
       setTimeout(() => { flashOverlay.className = 'flash-overlay'; }, 70);
 
+      if (action === 'next') {
+        currentSlide++;
+      } else if (action === 'prev') {
+        currentSlide = Math.max(1, currentSlide - 1);
+      }
+
+      if (typeof sendPeerMessage === 'function') {
+        sendPeerMessage({ type: 'command', action: action, slide: currentSlide });
+      }
+
       if (socket && socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({ type: 'command', action }));
-        if (action === 'next') {
-          currentSlide++;
-        } else if (action === 'prev') {
-          currentSlide = Math.max(1, currentSlide - 1);
-        }
       }
     }
 
@@ -2620,6 +2827,208 @@
       if (isAwakeEnabled && (!wakeLock || wakeLock.released)) requestWakeLock();
     }, { once: false });
 
+    // --------------------------------------------------------------------------
+    // WebRTC (PeerJS) サーバーレス P2P 接続マネージャー
+    // --------------------------------------------------------------------------
+    let peer = null;
+    let peerConn = null;
+    let peerConnections = [];
+    let isPeerHost = false;
+    let peerRoomId = '';
+
+    const hostWaitingCard = document.getElementById('hostWaitingCard');
+    const hostConnectedPanel = document.getElementById('hostConnectedPanel');
+    const hostQrImg = document.getElementById('hostQrImg');
+    const hostRoomIdText = document.getElementById('hostRoomIdText');
+    const hostSlideNum = document.getElementById('hostSlideNum');
+    const hostBigTimer = document.getElementById('hostBigTimer');
+    const hostWsDot = document.getElementById('hostWsDot');
+    const btnCopyHostUrl = document.getElementById('btnCopyHostUrl');
+    const btnHostPrev = document.getElementById('btnHostPrev');
+    const btnHostNext = document.getElementById('btnHostNext');
+
+    function sendPeerMessage(msg) {
+      if (isPeerHost) {
+        peerConnections.forEach(c => {
+          if (c && c.open) c.send(msg);
+        });
+      } else if (peerConn && peerConn.open) {
+        peerConn.send(msg);
+      }
+    }
+
+    function updateHostDisplay() {
+      if (hostSlideNum) hostSlideNum.textContent = currentSlide;
+      if (hostBigTimer) {
+        const isCountdown = targetTotalSeconds > 0;
+        const displaySec = isCountdown ? remainingSeconds : elapsedSeconds;
+        hostBigTimer.textContent = formatTimeDisplay(displaySec, isCountdown);
+      }
+    }
+
+    function initWebRTCPeer() {
+      if (typeof Peer === 'undefined') {
+        console.warn('PeerJS not loaded');
+        return;
+      }
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const queryRoom = urlParams.get('room');
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+
+      if (queryRoom) {
+        // === スマホ（リモコン）側 ===
+        isPeerHost = false;
+        peerRoomId = queryRoom;
+        initClientPeer(queryRoom);
+      } else if (!isMobile) {
+        // === PC（大画面ホスト）側 ===
+        isPeerHost = true;
+        switchView('viewHost');
+        initHostPeer();
+      } else {
+        // スマホで直接開いた場合（待受ではなくリモコンメニュー）
+        isPeerHost = false;
+      }
+    }
+
+    // ホスト（PC側）の初期化
+    function initHostPeer() {
+      const shortId = 'mt' + Math.floor(1000 + Math.random() * 9000);
+      peerRoomId = shortId;
+      if (hostRoomIdText) hostRoomIdText.textContent = shortId.toUpperCase();
+
+      try {
+        peer = new Peer(shortId, { debug: 1 });
+      } catch(e) {
+        peer = new Peer({ debug: 1 });
+      }
+
+      peer.on('open', async (id) => {
+        peerRoomId = id;
+        if (hostRoomIdText) hostRoomIdText.textContent = id.toUpperCase();
+        const joinUrl = `${window.location.origin}${window.location.pathname}?room=${id}`;
+
+        if (window.QRCodeLib && window.QRCodeLib.toDataURL && hostQrImg) {
+          try {
+            const dataUrl = await window.QRCodeLib.toDataURL(joinUrl, {
+              margin: 2,
+              width: 260,
+              color: { dark: '#181818', light: '#ffffff' }
+            });
+            hostQrImg.src = dataUrl;
+          } catch(e) {}
+        }
+      });
+
+      peer.on('connection', (conn) => {
+        peerConnections.push(conn);
+        conn.on('open', () => {
+          updateWsIndicator(true);
+          if (hostWaitingCard) hostWaitingCard.style.display = 'none';
+          if (hostConnectedPanel) hostConnectedPanel.classList.add('active');
+          updateHostDisplay();
+          conn.send({ type: 'sync_state', slide: currentSlide, isRunning: isTimerRunning });
+        });
+
+        conn.on('data', (data) => {
+          handleIncomingPeerData(data);
+        });
+
+        conn.on('close', () => {
+          peerConnections = peerConnections.filter(c => c !== conn);
+          if (peerConnections.length === 0) {
+            updateWsIndicator(false);
+            if (hostWaitingCard) hostWaitingCard.style.display = 'flex';
+            if (hostConnectedPanel) hostConnectedPanel.classList.remove('active');
+          }
+        });
+      });
+
+      peer.on('error', (err) => {
+        console.warn('Peer host error:', err);
+      });
+    }
+
+    // クライアント（スマホ側）の初期化
+    function initClientPeer(targetHostId) {
+      peer = new Peer({ debug: 1 });
+
+      peer.on('open', () => {
+        const conn = peer.connect(targetHostId, { reliable: true });
+        peerConn = conn;
+
+        conn.on('open', () => {
+          updateWsIndicator(true);
+          switchView('viewSlideSwitch');
+          if (navigator.vibrate) try { navigator.vibrate(50); } catch(e) {}
+        });
+
+        conn.on('data', (data) => {
+          if (data && data.type === 'sync_state') {
+            if (data.slide) currentSlide = data.slide;
+            if (typeof data.isRunning === 'boolean') {
+              if (data.isRunning && !isTimerRunning) startTimer();
+              else if (!data.isRunning && isTimerRunning) pauseTimer();
+            }
+          }
+        });
+
+        conn.on('close', () => {
+          updateWsIndicator(false);
+        });
+      });
+
+      peer.on('error', (err) => {
+        console.warn('Peer client error:', err);
+      });
+    }
+
+    // ホスト側でのコマンド受信処理
+    function handleIncomingPeerData(data) {
+      if (!data) return;
+      if (data.type === 'command') {
+        if (data.action === 'next') {
+          currentSlide++;
+          // PCブラウザ上で右矢印キーイベントを発火（スライド・PDFを次へ送る）
+          window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', keyCode: 39, bubbles: true }));
+          window.dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowRight', keyCode: 39, bubbles: true }));
+        } else if (data.action === 'prev') {
+          currentSlide = Math.max(1, currentSlide - 1);
+          // PCブラウザ上で左矢印キーイベントを発火（スライド・PDFを前へ戻す）
+          window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', keyCode: 37, bubbles: true }));
+          window.dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowLeft', keyCode: 37, bubbles: true }));
+        }
+        updateHostDisplay();
+        sendPeerMessage({ type: 'sync_state', slide: currentSlide });
+      }
+    }
+
+    if (btnCopyHostUrl) {
+      btnCopyHostUrl.addEventListener('click', () => {
+        const joinUrl = `${window.location.origin}${window.location.pathname}?room=${peerRoomId}`;
+        navigator.clipboard.writeText(joinUrl).then(() => {
+          btnCopyHostUrl.style.color = 'var(--color-semantic-success)';
+          setTimeout(() => { btnCopyHostUrl.style.color = ''; }, 1500);
+        });
+      });
+    }
+
+    if (btnHostPrev) {
+      btnHostPrev.addEventListener('click', () => {
+        currentSlide = Math.max(1, currentSlide - 1);
+        updateHostDisplay();
+        sendPeerMessage({ type: 'sync_state', slide: currentSlide });
+      });
+    }
+    if (btnHostNext) {
+      btnHostNext.addEventListener('click', () => {
+        currentSlide++;
+        updateHostDisplay();
+        sendPeerMessage({ type: 'sync_state', slide: currentSlide });
+      });
+    }
+
     // Initial
     renderTimerUI();
     loadServerInfo();
@@ -2628,6 +3037,7 @@
       if (serverInfo && serverInfo.hasTunnel) clearInterval(infoInterval);
     }, 2000);
     connectWebSocket();
+    initWebRTCPeer();
     requestWakeLock();
   </script>
 </body>
