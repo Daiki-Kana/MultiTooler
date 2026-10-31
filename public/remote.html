@@ -224,17 +224,35 @@
       flex: 1;
     }
 
-    /* SVGワイヤー線アニメーション (左から右へシュッと伸びる) */
+    /* SVGワイヤー線アニメーション (PCからスマホへシュッと伸びる) */
     .wire-line {
       stroke: #ffffff;
       stroke-width: 3;
       stroke-linecap: round;
       stroke-dasharray: 120;
       stroke-dashoffset: 120;
-      transition: stroke-dashoffset 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: stroke-dashoffset 0.5s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     .conn-toast.show .wire-line {
+      stroke-dashoffset: 0;
+    }
+
+    .wire-line.wire-line-left {
+      stroke-dasharray: 40;
+      stroke-dashoffset: 40;
+      transition: stroke-dashoffset 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .conn-toast.show .wire-line.wire-line-left {
+      stroke-dashoffset: 0;
+    }
+
+    .wire-line.wire-line-right {
+      stroke-dasharray: 40;
+      stroke-dashoffset: 40;
+      transition: stroke-dashoffset 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0.32s;
+    }
+    .conn-toast.show .wire-line.wire-line-right {
       stroke-dashoffset: 0;
     }
 
@@ -251,7 +269,7 @@
       transform: scale(1.4);
     }
 
-    /* ローカル直接接続モード (スマホ ────── PC) */
+    /* ローカル直接接続モード (PC ────── スマホ) */
     .conn-toast[data-mode="wifi"] .wire-direct {
       display: flex;
       align-items: center;
@@ -260,7 +278,7 @@
       display: none !important;
     }
 
-    /* クラウド中継接続モード (スマホ ── 雲 ── PC) */
+    /* クラウド中継接続モード (PC ── 雲 ── スマホ) */
     .conn-toast[data-mode="cloud"] .wire-direct {
       display: none !important;
     }
@@ -280,7 +298,23 @@
       background: rgba(255, 255, 255, 0.08);
       color: #8e8e93;
       transform: scale(0.85);
-      transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.2s, color 0.45s ease 0.3s;
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.22s, color 0.4s ease 0.25s, background-color 0.4s ease 0.25s;
+    }
+
+    .conn-toast.show .toast-cloud-node {
+      transform: scale(1);
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.16);
+    }
+
+    .conn-toast.show .toast-node.toast-phone {
+      animation: toastPhonePop 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.55s both;
+    }
+
+    @keyframes toastPhonePop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+      100% { transform: scale(1); }
     }
 
     .conn-toast.show .toast-cloud-node {
@@ -1130,14 +1164,15 @@
 
   <div id="flashOverlay" class="flash-overlay"></div>
   
-  <!-- Connection Modal Toast (Phone to PC Wire Link Animation, Centered & Dynamic) -->
+  <!-- Connection Modal Toast (PC to Phone Wire Link Animation, Centered & Dynamic) -->
   <div id="connectionToast" class="conn-toast" data-mode="wifi" aria-live="polite">
     <div class="toast-anim-row">
-      <!-- Phone Node -->
-      <div class="toast-node toast-phone" title="Smartphone">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
-          <line x1="12" y1="18" x2="12.01" y2="18"></line>
+      <!-- PC Node (Host / Sender) -->
+      <div class="toast-node toast-pc" title="Computer">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+          <line x1="8" y1="21" x2="16" y2="21"></line>
+          <line x1="12" y1="17" x2="12" y2="21"></line>
         </svg>
       </div>
 
@@ -1154,7 +1189,7 @@
         <!-- Via Cloud Wire (Internet / Relay) -->
         <div class="wire-cloud-wrap">
           <svg class="wire-svg" viewBox="0 0 34 24" width="34" height="24">
-            <line x1="0" y1="12" x2="34" y2="12" class="wire-line"></line>
+            <line x1="0" y1="12" x2="34" y2="12" class="wire-line wire-line-left"></line>
           </svg>
           <div class="toast-cloud-node" title="Cloud Relay">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1162,17 +1197,16 @@
             </svg>
           </div>
           <svg class="wire-svg" viewBox="0 0 34 24" width="34" height="24">
-            <line x1="0" y1="12" x2="34" y2="12" class="wire-line"></line>
+            <line x1="0" y1="12" x2="34" y2="12" class="wire-line wire-line-right"></line>
           </svg>
         </div>
       </div>
 
-      <!-- PC Node -->
-      <div class="toast-node toast-pc" title="Computer">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="2" y="3" width="20" height="14" rx="2"></rect>
-          <line x1="8" y1="21" x2="16" y2="21"></line>
-          <line x1="12" y1="17" x2="12" y2="21"></line>
+      <!-- Phone Node (Remote / Receiver) -->
+      <div class="toast-node toast-phone" title="Smartphone">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+          <line x1="12" y1="18" x2="12.01" y2="18"></line>
         </svg>
       </div>
     </div>
@@ -2665,6 +2699,9 @@
       return 'cloud';
     }
 
+    let lastPairingAnimTime = 0;
+    const pageLoadTimestamp = Date.now();
+
     function triggerConnectionAnimation(routeType) {
       const toast = document.getElementById('connectionToast');
       if (!toast) return;
@@ -2675,7 +2712,7 @@
         label.textContent = (routeType === 'wifi') ? 'LOCAL DIRECT LINK' : 'CLOUD RELAY LINK';
       }
 
-      // ワイヤーアニメーションのリセット & 再発火
+      // ワイヤーアニメーションのリセット & 再発火 (PCからスマホへシュッと伸びる)
       toast.classList.remove('show');
       void toast.offsetWidth; // リフロー強制
       toast.classList.add('show');
@@ -2686,6 +2723,47 @@
       toastTimeout = setTimeout(() => {
         toast.classList.remove('show');
       }, 2800);
+    }
+
+    // スマホとPCのペアリングが成立した瞬間のみに発火させる（ページ初期読込時の誤発火を完全防止）
+    async function triggerPairingAnimation() {
+      const now = Date.now();
+      // ページ読み込み後1.2秒以内の初期化ガード、または直近4秒以内の連続発火を抑制
+      if (now - pageLoadTimestamp < 1200) return;
+      if (now - lastPairingAnimTime < 4000) return;
+      lastPairingAnimTime = now;
+
+      // ICE candidate pair の確定を少し待ってから高精度に判定して発火
+      setTimeout(async () => {
+        currentRouteType = await detectActualRouteType();
+        const pills = [
+          document.getElementById('menuConnPill'),
+          document.getElementById('remoteConnPill'),
+          document.getElementById('trackpadConnPill')
+        ];
+        pills.forEach(p => p && p.setAttribute('data-route', currentRouteType));
+        triggerConnectionAnimation(currentRouteType);
+      }, 180);
+
+      // さらにICEペアが完全確立する600ms後に再確認して表示を同期
+      setTimeout(async () => {
+        const freshRoute = await detectActualRouteType();
+        if (freshRoute !== currentRouteType) {
+          currentRouteType = freshRoute;
+          const pills = [
+            document.getElementById('menuConnPill'),
+            document.getElementById('remoteConnPill'),
+            document.getElementById('trackpadConnPill')
+          ];
+          pills.forEach(p => p && p.setAttribute('data-route', currentRouteType));
+          const toast = document.getElementById('connectionToast');
+          if (toast) {
+            toast.setAttribute('data-mode', currentRouteType);
+            const label = document.getElementById('toastModeLabel');
+            if (label) label.textContent = (currentRouteType === 'wifi') ? 'LOCAL DIRECT LINK' : 'CLOUD RELAY LINK';
+          }
+        }
+      }, 600);
     }
 
     async function updateWsIndicator(isConnected) {
@@ -2716,30 +2794,6 @@
         }
       });
 
-      // 未接続から接続へ変化した瞬間におしゃれなアニメーションを1回発火
-      if (connected && !lastConnectedState) {
-        // ICE candidate pair の確定を少し待ってから高精度に判定して発火
-        setTimeout(async () => {
-          currentRouteType = await detectActualRouteType();
-          pills.forEach(p => p && p.setAttribute('data-route', currentRouteType));
-          triggerConnectionAnimation(currentRouteType);
-        }, 180);
-
-        // さらにICEペアが完全確立する600ms後に再確認して表示を自動同期
-        setTimeout(async () => {
-          const freshRoute = await detectActualRouteType();
-          if (freshRoute !== currentRouteType) {
-            currentRouteType = freshRoute;
-            pills.forEach(p => p && p.setAttribute('data-route', currentRouteType));
-            const toast = document.getElementById('connectionToast');
-            if (toast) {
-              toast.setAttribute('data-mode', currentRouteType);
-              const label = document.getElementById('toastModeLabel');
-              if (label) label.textContent = (currentRouteType === 'wifi') ? 'LOCAL DIRECT LINK' : 'CLOUD RELAY LINK';
-            }
-          }
-        }, 600);
-      }
       lastConnectedState = connected;
 
       if (unconnectedNotice) {
@@ -3180,6 +3234,7 @@
         peerConnections.push(conn);
         conn.on('open', () => {
           updateWsIndicator(true);
+          triggerPairingAnimation();
           conn.send({ type: 'sync_state', slide: currentSlide, isRunning: isTimerRunning });
         });
 
@@ -3215,6 +3270,7 @@
         conn.on('open', () => {
           console.log('[WebRTC Client] ホストとP2P接続確立！');
           updateWsIndicator(true);
+          triggerPairingAnimation();
           if (navigator.vibrate) try { navigator.vibrate([60, 40, 60]); } catch(e) {}
         });
 
@@ -3321,6 +3377,7 @@
     // ホスト側でのコマンド・マウス操作受信処理 (Win32 Native API へ完全直結)
     function handleIncomingPeerData(data) {
       if (!data) return;
+      triggerPairingAnimation();
 
       // 1. スライド操作コマンド (OSの最前面PowerPoint / Googleスライド / PDF送り)
       if (data.type === 'command') {
