@@ -224,42 +224,46 @@
       flex: 1;
     }
 
-    /* SVGワイヤー線アニメーション (PCからスマホへシュッと伸びる) */
+    /* SVGワイヤー線アニメーション (PCからスマホへゆっくり優雅に伸びる) */
     .wire-line {
       stroke: #ffffff;
       stroke-width: 3;
       stroke-linecap: round;
       stroke-dasharray: 120;
       stroke-dashoffset: 120;
-      transition: stroke-dashoffset 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: stroke-dashoffset 1.35s cubic-bezier(0.2, 0.8, 0.25, 1);
     }
 
     .conn-toast.show .wire-line {
       stroke-dashoffset: 0;
     }
 
+    /* クラウド中継: PC -> 雲 (0s〜0.65s) */
     .wire-line.wire-line-left {
       stroke-dasharray: 40;
       stroke-dashoffset: 40;
-      transition: stroke-dashoffset 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: stroke-dashoffset 0.65s cubic-bezier(0.2, 0.8, 0.25, 1);
     }
     .conn-toast.show .wire-line.wire-line-left {
       stroke-dashoffset: 0;
     }
 
+    /* クラウド中継: 雲 -> スマホ (0.7s〜1.35s) */
     .wire-line.wire-line-right {
       stroke-dasharray: 40;
       stroke-dashoffset: 40;
-      transition: stroke-dashoffset 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0.32s;
+      transition: stroke-dashoffset 0.65s cubic-bezier(0.2, 0.8, 0.25, 1) 0.7s;
     }
     .conn-toast.show .wire-line.wire-line-right {
       stroke-dashoffset: 0;
     }
 
+    /* ローカル直結: PC -> スマホ (0s〜1.35s ゆっくりスーッと光のラインが伸びる) */
     .wire-line.wire-line-direct {
       stroke: #ffffff;
-      filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8));
-      transition: stroke-dashoffset 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+      stroke-width: 3.2;
+      filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.85));
+      transition: stroke-dashoffset 1.35s cubic-bezier(0.2, 0.8, 0.25, 1);
     }
 
     /* ローカル直接接続モード (PC ────── スマホ) */
@@ -291,7 +295,7 @@
       background: rgba(255, 255, 255, 0.08);
       color: #8e8e93;
       transform: scale(0.85);
-      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.22s, color 0.4s ease 0.25s, background-color 0.4s ease 0.25s;
+      transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.55s, color 0.4s ease 0.6s, background-color 0.4s ease 0.6s;
     }
 
     .conn-toast.show .toast-cloud-node {
@@ -300,20 +304,15 @@
       background: rgba(255, 255, 255, 0.16);
     }
 
+    /* ラインがスマホに届いた瞬間(1.35s後)のリアクション */
     .conn-toast.show .toast-node.toast-phone {
-      animation: toastPhonePop 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.55s both;
+      animation: toastPhonePop 0.45s cubic-bezier(0.16, 1, 0.3, 1) 1.35s both;
     }
 
     @keyframes toastPhonePop {
       0% { transform: scale(1); }
-      50% { transform: scale(1.15); }
+      50% { transform: scale(1.18); }
       100% { transform: scale(1); }
-    }
-
-    .conn-toast.show .toast-cloud-node {
-      transform: scale(1);
-      color: #ffffff;
-      background: rgba(255, 255, 255, 0.15);
     }
 
     .toast-label-row {
@@ -339,7 +338,7 @@
       color: #ffffff;
       opacity: 0;
       transform: scale(0);
-      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1) 0.5s;
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1) 1.45s;
     }
 
     .conn-toast.show .toast-badge-check {
@@ -2759,7 +2758,7 @@
         label.textContent = (routeType === 'wifi') ? 'LOCAL DIRECT LINK' : 'CLOUD RELAY LINK';
       }
 
-      // ワイヤーアニメーションのリセット & 再発火 (PCからスマホへシュッと伸びる)
+      // ワイヤーアニメーションのリセット & 再発火 (PCからスマホへゆっくり優雅に伸びる)
       toast.classList.remove('show');
       void toast.offsetWidth; // リフロー強制
       toast.classList.add('show');
@@ -2769,7 +2768,7 @@
       clearTimeout(toastTimeout);
       toastTimeout = setTimeout(() => {
         toast.classList.remove('show');
-      }, 2800);
+      }, 3800);
     }
 
     // スマホとPCのペアリングが成立した瞬間のみに発火させる（ページ初期読込時の誤発火を完全防止）
