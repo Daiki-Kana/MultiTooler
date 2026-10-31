@@ -459,6 +459,54 @@
       to { transform: rotate(360deg); }
     }
 
+    /* Unconnected Guidance Banner (Borderless, Minimal) */
+    .unconnected-notice {
+      margin: 12px 16px 0 16px;
+      padding: 10px 14px;
+      background: var(--color-surface-1);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      animation: fadeIn 0.2s ease;
+    }
+
+    .unconnected-content {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--color-ink);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .unconnected-scan-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--color-ink);
+      color: #ffffff;
+      border: none;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-family: var(--font-family);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: transform 0.08s ease, opacity 0.1s ease;
+    }
+
+    .unconnected-scan-btn:active {
+      transform: scale(0.94);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
     /* Camera Scanner Viewport */
     .scanner-viewport {
       position: relative;
@@ -894,6 +942,25 @@
         </button>
       </div>
     </header>
+
+    <!-- Unconnected Guidance Banner (Cloudflare Pages 等で接続先未設定の場合に自動表示) -->
+    <div id="unconnectedNotice" class="unconnected-notice" style="display: none;">
+      <div class="unconnected-content">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <span>Connect PC</span>
+      </div>
+      <button type="button" id="btnNoticeScan" class="unconnected-scan-btn" aria-label="Scan PC QR">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+          <circle cx="12" cy="13" r="4"></circle>
+        </svg>
+        <span>Scan</span>
+      </button>
+    </div>
 
     <main class="menu-body">
       <!-- Slide Switch Card -->
@@ -1887,15 +1954,16 @@
             try { navigator.vibrate(100); } catch (e) {}
           }
           closeCameraScanner();
-          // Cloudflare Pages上で開いている場合はPagesドメインを維持しserverパラメータをセット
-          if (window.location.hostname.endsWith('.pages.dev')) {
-            try {
-              const u = new URL(detectedUrl);
-              const target = `${window.location.origin}${window.location.pathname}?server=${encodeURIComponent(u.origin)}`;
-              window.location.href = target;
+          try {
+            const u = new URL(detectedUrl);
+            const serverParam = u.searchParams.get('server');
+            const targetServer = serverParam || u.origin;
+            localStorage.setItem('wss_server_target', targetServer);
+            if (window.location.hostname.endsWith('.pages.dev')) {
+              window.location.href = `${window.location.origin}${window.location.pathname}?server=${encodeURIComponent(targetServer)}`;
               return;
-            } catch (e) {}
-          }
+            }
+          } catch (e) {}
           window.location.href = detectedUrl;
           return;
         }
@@ -2017,11 +2085,9 @@
 
       if (activeQrTab === 'tunnel') {
         if (serverInfo && serverInfo.tunnelRemoteUrl) {
-          if (isPagesDev) {
-            targetUrl = `${window.location.origin}${window.location.pathname}?server=${encodeURIComponent(serverInfo.tunnelRemoteUrl)}`;
-          } else {
-            targetUrl = serverInfo.tunnelRemoteUrl;
-          }
+          const defaultPagesHost = 'https://43156150.multitooler-ety.pages.dev';
+          const baseHost = isPagesDev ? `${window.location.origin}${window.location.pathname}` : defaultPagesHost;
+          targetUrl = `${baseHost.replace(/\/$/, '')}/?server=${encodeURIComponent(serverInfo.tunnelRemoteUrl)}`;
         } else if (cfg.hasCustomServer && !isLocalHost) {
           targetUrl = isPagesDev
             ? `${window.location.origin}${window.location.pathname}?server=${encodeURIComponent(cfg.httpOrigin)}`
@@ -2180,12 +2246,23 @@
       socket.addEventListener('error', () => {});
     }
 
+    const unconnectedNotice = document.getElementById('unconnectedNotice');
+    const btnNoticeScan = document.getElementById('btnNoticeScan');
+    if (btnNoticeScan) {
+      btnNoticeScan.addEventListener('click', openCameraScanner);
+    }
+
     function updateWsIndicator(isConnected) {
       const dotClass = isConnected ? 'status-dot active' : 'status-dot warning';
       if (menuWsDot) menuWsDot.className = dotClass;
       if (remoteWsDot) remoteWsDot.className = dotClass;
       const trackpadWsDot = document.getElementById('trackpadWsDot');
       if (trackpadWsDot) trackpadWsDot.className = dotClass;
+
+      if (unconnectedNotice) {
+        const isPagesDev = window.location.hostname.endsWith('.pages.dev');
+        unconnectedNotice.style.display = (!isConnected && isPagesDev) ? 'flex' : 'none';
+      }
     }
 
     // --------------------------------------------------------------------------
