@@ -209,37 +209,6 @@ function restartCloudflareTunnel() {
   });
 }
 
-// 定期死活ヘルスチェック（60秒毎にトンネルの生存を確認し、失効時は自動再接続）
-setInterval(async () => {
-  if (!currentTunnelUrl) return;
-  try {
-    const https = require('https');
-    const u = new URL(currentTunnelUrl);
-    const req = https.request({
-      hostname: u.hostname,
-      port: 443,
-      path: '/api/info',
-      method: 'HEAD',
-      timeout: 8000
-    }, (res) => {
-      if (res.statusCode >= 500) {
-        console.warn('[Cloudflare] トンネル応答異常を検知、再起動します...');
-        restartCloudflareTunnel();
-      }
-    });
-    req.on('error', (e) => {
-      console.warn(`[Cloudflare] トンネル切断を検知 (${e.message})。自動再起動します...`);
-      restartCloudflareTunnel();
-    });
-    req.on('timeout', () => {
-      req.destroy();
-      console.warn('[Cloudflare] トンネル応答タイムアウト。自動再起動します...');
-      restartCloudflareTunnel();
-    });
-    req.end();
-  } catch (err) {}
-}, 60000);
-
 startCloudflareTunnel();
 
 // ------------------------------------------------------------------------------
