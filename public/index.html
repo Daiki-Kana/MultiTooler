@@ -1959,7 +1959,7 @@
             const serverParam = u.searchParams.get('server');
             const targetServer = serverParam || u.origin;
             localStorage.setItem('wss_server_target', targetServer);
-            if (window.location.hostname.endsWith('.pages.dev')) {
+            if (checkIsStaticHost()) {
               window.location.href = `${window.location.origin}${window.location.pathname}?server=${encodeURIComponent(targetServer)}`;
               return;
             }
@@ -1990,19 +1990,30 @@
     });
 
     // --------------------------------------------------------------------------
-    // 接続先ターゲット解決 (Cloudflare Pages 静的ホスト & ローカル両対応)
+    // 静的ホスト判定（Vercel, Cloudflare Pages, GitHub Pages等の静的CDN環境）
+    // --------------------------------------------------------------------------
+    function checkIsStaticHost() {
+      const host = window.location.hostname;
+      return host.endsWith('.vercel.app') ||
+             host.endsWith('.pages.dev') ||
+             host.endsWith('.github.io') ||
+             (host !== 'localhost' && host !== '127.0.0.1' && !host.includes('trycloudflare.com'));
+    }
+
+    // --------------------------------------------------------------------------
+    // 接続先ターゲット解決 (Vercel / Cloudflare Pages 静的ホスト & ローカル両対応)
     // --------------------------------------------------------------------------
     function getTargetServerConfig() {
       const urlParams = new URLSearchParams(window.location.search);
       const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      const isPagesDev = window.location.hostname.endsWith('.pages.dev');
+      const isStaticHost = checkIsStaticHost();
 
       let rawServer = urlParams.get('server') || '';
-      // localhost以外（Cloudflare Pages等の静的CDN）でのみlocalStorageのカスタムサーバーを使用
+      // localhost以外（Vercel等の静的ホスト）でのみlocalStorageのカスタムサーバーを使用
       if (!rawServer && !isLocalHost) {
         rawServer = localStorage.getItem('wss_server_target') || '';
       }
-      if (!rawServer && !isPagesDev) {
+      if (!rawServer && !isStaticHost) {
         rawServer = window.location.origin;
       }
 
@@ -2038,7 +2049,7 @@
     }
 
     // --------------------------------------------------------------------------
-    // Server Info & QR (クライアント側動的生成 & Cloudflare Pages対応)
+    // Server Info & QR (クライアント側動的生成 & Vercel / Pages対応)
     // --------------------------------------------------------------------------
     let serverInfo = null;
     let activeQrTab = 'tunnel';
@@ -2078,18 +2089,28 @@
 
     async function updateQrDisplay() {
       const cfg = getTargetServerConfig();
-      const isPagesDev = window.location.hostname.endsWith('.pages.dev');
+      const isStaticHost = checkIsStaticHost();
       const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
       let targetUrl = '';
 
       if (activeQrTab === 'tunnel') {
         if (serverInfo && serverInfo.tunnelRemoteUrl) {
-          const defaultPagesHost = 'https://43156150.multitooler-ety.pages.dev';
-          const baseHost = isPagesDev ? `${window.location.origin}${window.location.pathname}` : defaultPagesHost;
-          targetUrl = `${baseHost.replace(/\/$/, '')}/?server=${encodeURIComponent(serverInfo.tunnelRemoteUrl)}`;
+          // Vercel または登録済みデプロイ先ホスト
+          const savedDeployHost = localStorage.getItem('wss_deploy_host') || '';
+          const baseHost = isStaticHost 
+            ? `${window.location.origin}${window.location.pathname}` 
+            : (savedDeployHost || serverInfo.tunnelRemoteUrl);
+          
+          if (baseHost.includes('?server=')) {
+            targetUrl = baseHost;
+          } else if (baseHost === serverInfo.tunnelRemoteUrl) {
+            targetUrl = serverInfo.tunnelRemoteUrl;
+          } else {
+            targetUrl = `${baseHost.replace(/\/$/, '')}/?server=${encodeURIComponent(serverInfo.tunnelRemoteUrl)}`;
+          }
         } else if (cfg.hasCustomServer && !isLocalHost) {
-          targetUrl = isPagesDev
+          targetUrl = isStaticHost
             ? `${window.location.origin}${window.location.pathname}?server=${encodeURIComponent(cfg.httpOrigin)}`
             : cfg.httpOrigin;
         } else {
@@ -2119,7 +2140,10 @@
       } catch (err) {}
 
       if (inputServerUrl) {
-        if (serverInfo && serverInfo.tunnelRemoteUrl) {
+        const savedDeploy = localStorage.getItem('wss_deploy_host');
+        if (savedDeploy && isLocalHost) {
+          inputServerUrl.value = savedDeploy;
+        } else if (serverInfo && serverInfo.tunnelRemoteUrl) {
           inputServerUrl.value = serverInfo.tunnelRemoteUrl;
         } else if (cfg.hasCustomServer && !isLocalHost) {
           inputServerUrl.value = cfg.httpOrigin;
@@ -2138,6 +2162,12 @@
           }
           try {
             const u = new URL(val);
+            if (u.hostname.endsWith('.vercel.app') || u.hostname.endsWith('.pages.dev') || u.hostname.endsWith('.github.io')) {
+              localStorage.setItem('wss_deploy_host', u.origin);
+              updateQrDisplay();
+              if (navigator.vibrate) try { navigator.vibrate(30); } catch (e) {}
+              return;
+            }
             localStorage.setItem('wss_server_target', u.origin);
             const newUrl = new URL(window.location.href);
             newUrl.searchParams.set('server', u.origin);
@@ -2260,8 +2290,8 @@
       if (trackpadWsDot) trackpadWsDot.className = dotClass;
 
       if (unconnectedNotice) {
-        const isPagesDev = window.location.hostname.endsWith('.pages.dev');
-        unconnectedNotice.style.display = (!isConnected && isPagesDev) ? 'flex' : 'none';
+        const isStaticHost = checkIsStaticHost();
+        unconnectedNotice.style.display = (!isConnected && isStaticHost) ? 'flex' : 'none';
       }
     }
 
