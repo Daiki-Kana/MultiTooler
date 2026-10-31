@@ -106,6 +106,112 @@
     }
 
     /* --------------------------------------------------------------------------
+       Connection Pill & Dynamic Toast (Icon First, Zero Borders, Aesthetic)
+       -------------------------------------------------------------------------- */
+    .connection-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      border-radius: 9999px;
+      background: var(--color-surface-1);
+      color: var(--color-ink-muted);
+      cursor: default;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      user-select: none;
+      -webkit-user-select: none;
+      border: none;
+    }
+
+    .connection-pill .route-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .connection-pill .status-check {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transform: scale(0.6);
+      transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+      width: 0;
+      overflow: hidden;
+    }
+
+    .connection-pill.connected {
+      background: var(--color-surface-2);
+      color: var(--color-ink);
+    }
+
+    .connection-pill.connected .status-check {
+      opacity: 1;
+      transform: scale(1);
+      width: 13px;
+    }
+
+    .connection-pill.disconnected {
+      opacity: 0.45;
+      color: var(--color-ink-subtle);
+      animation: pillPulse 2.2s ease-in-out infinite;
+    }
+
+    @keyframes pillPulse {
+      0%, 100% { opacity: 0.35; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(1.02); }
+    }
+
+    .connection-pill[data-route="wifi"] .route-cloud { display: none; }
+    .connection-pill[data-route="wifi"] .route-wifi { display: inline-flex; }
+    .connection-pill[data-route="cloud"] .route-wifi { display: none; }
+    .connection-pill[data-route="cloud"] .route-cloud { display: inline-flex; }
+
+    /* 接続完了時のおしゃれなフローティングトーストアニメーション */
+    .conn-toast {
+      position: fixed;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-50px) scale(0.9);
+      background: #111111;
+      color: #ffffff;
+      padding: 9px 18px;
+      border-radius: 9999px;
+      z-index: 999999;
+      pointer-events: none;
+      opacity: 0;
+      transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease;
+      box-shadow: 0 10px 32px rgba(0, 0, 0, 0.16);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--font-family);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.6px;
+      border: none;
+    }
+
+    .conn-toast.show {
+      transform: translateX(-50%) translateY(0) scale(1);
+      opacity: 1;
+    }
+
+    .toast-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+    }
+
+    .toast-check {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+    }
+
+    /* --------------------------------------------------------------------------
        Menu View (2x2 Grid, Full Height & Width, Borderless)
        -------------------------------------------------------------------------- */
     .menu-body {
@@ -915,12 +1021,45 @@
 
   <div id="flashOverlay" class="flash-overlay"></div>
   
+  <!-- Connection Toast (Aesthetic Floating Pill) -->
+  <div id="connectionToast" class="conn-toast" aria-live="polite">
+    <span class="toast-icon" id="toastIcon">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+      </svg>
+    </span>
+    <span id="toastText">CONNECTED</span>
+    <span class="toast-check">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+    </span>
+  </div>
 
   <!-- 1. Menu View -->
   <div id="viewToolMenu" class="view-container active">
     <header class="bar">
       <div class="bar-group">
-        <span class="status-dot" id="menuWsDot"></span>
+        <div class="connection-pill disconnected" id="menuConnPill" data-route="cloud" aria-label="Connection Status">
+          <span class="route-icon route-wifi">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+              <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+              <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+              <line x1="12" y1="20" x2="12.01" y2="20"></line>
+            </svg>
+          </span>
+          <span class="route-icon route-cloud">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+            </svg>
+          </span>
+          <span class="status-check">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </span>
+        </div>
       </div>
       <div class="bar-group">
         <!-- Scan Camera Icon -->
@@ -1032,7 +1171,26 @@
           </svg>
         </button>
 
-        <span class="status-dot" id="remoteWsDot"></span>
+        <div class="connection-pill disconnected" id="remoteConnPill" data-route="cloud" aria-label="Connection Status">
+          <span class="route-icon route-wifi">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+              <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+              <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+              <line x1="12" y1="20" x2="12.01" y2="20"></line>
+            </svg>
+          </span>
+          <span class="route-icon route-cloud">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+            </svg>
+          </span>
+          <span class="status-check">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </span>
+        </div>
       </div>
 
       <div class="bar-group">
@@ -1096,7 +1254,26 @@
             <polyline points="15 18 9 12 15 6"></polyline>
           </svg>
         </button>
-        <span class="status-dot" id="trackpadWsDot"></span>
+        <div class="connection-pill disconnected" id="trackpadConnPill" data-route="cloud" aria-label="Connection Status">
+          <span class="route-icon route-wifi">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+              <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+              <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+              <line x1="12" y1="20" x2="12.01" y2="20"></line>
+            </svg>
+          </span>
+          <span class="route-icon route-cloud">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+            </svg>
+          </span>
+          <span class="status-check">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </span>
+        </div>
       </div>
       <div class="bar-group">
         <!-- Keyboard Toggle Icon -->
@@ -2290,18 +2467,73 @@
       btnNoticeScan.addEventListener('click', openCameraScanner);
     }
 
+    let lastConnectedState = false;
+    let toastTimeout = null;
+
+    function getConnectionRouteType() {
+      const host = window.location.hostname;
+      if (host === 'localhost' || host === '127.0.0.1' || /^192\.168\./.test(host) || /^10\./.test(host)) {
+        return 'wifi';
+      }
+      return 'cloud';
+    }
+
+    function triggerConnectionAnimation(routeType) {
+      const toast = document.getElementById('connectionToast');
+      const toastText = document.getElementById('toastText');
+      const toastIcon = document.getElementById('toastIcon');
+
+      if (!toast) return;
+
+      const isWifi = routeType === 'wifi';
+      if (toastText) {
+        toastText.textContent = isWifi ? 'CONNECTED VIA WI-FI' : 'CONNECTED VIA CLOUD';
+      }
+      if (toastIcon) {
+        toastIcon.innerHTML = isWifi 
+          ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"></path><path d="M1.42 9a16 16 0 0 1 21.16 0"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg>`
+          : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>`;
+      }
+
+      toast.classList.add('show');
+      if (navigator.vibrate) try { navigator.vibrate([40, 60, 40]); } catch (e) {}
+
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.remove('show');
+      }, 2400);
+    }
+
     function updateWsIndicator(isConnected) {
       const isPeerActive = (typeof isPeerHost !== 'undefined' && isPeerHost && peerConnections && peerConnections.length > 0) || 
                            (typeof peerConn !== 'undefined' && peerConn && peerConn.open);
       const isWsActive = socket && socket.readyState === WebSocket.OPEN;
       const connected = (typeof isConnected === 'boolean' && isConnected) || isPeerActive || isWsActive;
 
-      const dotClass = connected ? 'status-dot active' : 'status-dot warning';
-      if (menuWsDot) menuWsDot.className = dotClass;
-      if (remoteWsDot) remoteWsDot.className = dotClass;
-      if (hostWsDot) hostWsDot.className = dotClass;
-      const trackpadWsDot = document.getElementById('trackpadWsDot');
-      if (trackpadWsDot) trackpadWsDot.className = dotClass;
+      const routeType = getConnectionRouteType();
+      const pills = [
+        document.getElementById('menuConnPill'),
+        document.getElementById('remoteConnPill'),
+        document.getElementById('trackpadConnPill')
+      ];
+
+      pills.forEach(pill => {
+        if (!pill) return;
+        pill.setAttribute('data-route', routeType);
+        if (connected) {
+          pill.classList.remove('disconnected');
+          pill.classList.add('connected');
+        } else {
+          pill.classList.remove('connected');
+          pill.classList.add('disconnected');
+        }
+      });
+
+      // 未接続から接続へ変化した瞬間におしゃれなアニメーションを1回発火
+      if (connected && !lastConnectedState) {
+        triggerConnectionAnimation(routeType);
+      }
+      lastConnectedState = connected;
 
       if (unconnectedNotice) {
         const isStaticHost = checkIsStaticHost();
