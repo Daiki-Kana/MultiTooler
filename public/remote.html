@@ -340,17 +340,6 @@
       align-items: center;
     }
 
-    /* ラインがスマホに届いた瞬間(1.4秒後)のリアクション */
-    .conn-blocker.state-connected .toast-node.toast-phone {
-      animation: toastPhonePop 0.4s cubic-bezier(0.16, 1, 0.3, 1) 1.4s both;
-    }
-
-    @keyframes toastPhonePop {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.18); }
-      100% { transform: scale(1); }
-    }
-
     /* 中央チェックマーク (白黒モノトーン・純白背景に映える黒丸・白チェック) */
     .toast-center-check {
       display: inline-flex;
@@ -2179,93 +2168,111 @@
     }
     laserAnimFrameId = requestAnimationFrame(renderLaserFrame);
 
-    // スマホ（クライアント）側: ジャイロセンサー ＆ クラッチ操作
+    // スマホ（クライアント）側: 姿勢角ジャイロセンサー ＆ クラッチ絶対ポインティング操作
     let isLaserClutching = false;
-    let gyroPermissionRequested = false;
-    let smoothGx = 0;
-    let smoothGy = 0;
-    let accumLaserDx = 0;
-    let accumLaserDy = 0;
+    let orientationPermissionRequested = false;
+    let latestAlpha = 0;
+    let latestBeta = 0;
+    let latestGamma = 0;
+    let baseAlpha = 0;
+    let baseBeta = 0;
+    let smoothNormX = 0.5;
+    let smoothNormY = 0.5;
     let laserSendScheduled = false;
 
-    // iOS 13+ ジャイロ利用許可の要求
-    async function requestGyroPermission() {
-      if (gyroPermissionRequested) return true;
+    // iOS 13+ ジャイロ・姿勢角利用許可の要求
+    async function requestOrientationPermission() {
+      if (orientationPermissionRequested) return true;
+      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        try {
+          const res = await DeviceOrientationEvent.requestPermission();
+          if (res === 'granted') {
+            orientationPermissionRequested = true;
+            return true;
+          }
+        } catch (e) {
+          console.warn('[Orientation] Permission denied:', e);
+        }
+      }
       if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
         try {
           const res = await DeviceMotionEvent.requestPermission();
           if (res === 'granted') {
-            gyroPermissionRequested = true;
+            orientationPermissionRequested = true;
             return true;
           }
-        } catch (e) {
-          console.warn('[Gyro] Permission denied:', e);
-        }
-        return false;
+        } catch (e) {}
       }
-      gyroPermissionRequested = true;
+      orientationPermissionRequested = true;
       return true;
     }
 
-    // ジャイロ角速度（rotationRate）の測定と手ブレ除去
-    function onDeviceMotion(evt) {
+    // 姿勢角の常時追跡（Alpha: 方位ヨー角, Beta: 上下ピッチ角, Gamma: 左右ロール角）
+    function onDeviceOrientation(evt) {
+      if (typeof evt.alpha === 'number') latestAlpha = evt.alpha;
+      if (typeof evt.beta === 'number') latestBeta = evt.beta;
+      if (typeof evt.gamma === 'number') latestGamma = evt.gamma;
+
       if (!isLaserClutching) return;
-      const rot = evt.rotationRate;
-      if (!rot) return;
 
-      // 縦持ち前提:
-      // - 左右の首振り（ポインター水平移動）: rot.gamma
-      // - 上下の傾き（ポインター垂直移動）: -rot.beta
-      let rawGx = typeof rot.gamma === 'number' ? rot.gamma : 0;
-      let rawGy = typeof rot.beta === 'number' ? -rot.beta : 0;
+      // 1. 水平方向（Yaw / 首振り方位角）の差分計算
+      let diffAlpha = latestAlpha - baseAlpha;
+      if (diffAlpha > 180) diffAlpha -= 360;
+      if (diffAlpha < -180) diffAlpha += 360;
 
-      // 1. デッドゾーン（不感帯）: 微小な手の震え（0.65 deg/s未満）を完全にゼロ化
-      const DEADZONE = 0.65;
-      const filteredGx = Math.abs(rawGx) < DEADZONE ? 0 : rawGx;
-      const filteredGy = Math.abs(rawGy) < DEADZONE ? 0 : rawGy;
+      // スマホ先端を右に向けたとき右へ、左に向けたとき左へ
+      const angleX = -diffAlpha;
 
-      // 2. 指数平滑移動平均フィルター（EMA）による滑らかなジッター除去
-      const EMA_ALPHA = 0.55;
-      smoothGx = smoothGx * (1 - EMA_ALPHA) + filteredGx * EMA_ALPHA;
-      smoothGy = smoothGy * (1 - EMA_ALPHA) + filteredGy * EMA_ALPHA;
+      // 2. 垂直方向（Pitch / 上下仰角）の差分計算
+      const diffBeta = latestBeta - baseBeta;
+      // スマホ先端を上に持ち上げたとき上へ、下へ向けたとき下へ
+      const angleY = -diffBeta;
 
-      // 3. 非線形加速カーブ（ゆっくり動かすと微細精密、素早く振ると一気に大移動）
-      function nonLinearAccel(val) {
-        const sign = Math.sign(val);
-        const mag = Math.abs(val);
-        return sign * Math.pow(mag, 1.28) * 2.2;
-      }
+      // 3. 視野角（FOV / 感度）による画面ピクセル比率 (0.0 〜 1.0) へのダイレクトマッピング
+      // 左右約22度、上下約16度の快適な手首の振り幅で画面の端から端まで到達
+      const FOV_X = 44; // 左右 ±22度
+      const FOV_Y = 32; // 上下 ±16度
 
-      accumLaserDx += nonLinearAccel(smoothGx);
-      accumLaserDy += nonLinearAccel(smoothGy);
+      let targetNormX = 0.5 + (angleX / FOV_X);
+      let targetNormY = 0.5 + (angleY / FOV_Y);
 
-      // 1フレーム（約16ms）に1回、差分データをWebRTC経由でホストへストリーミング
+      // 画面外クランプ
+      targetNormX = Math.max(0.01, Math.min(0.99, targetNormX));
+      targetNormY = Math.max(0.01, Math.min(0.99, targetNormY));
+
+      // 4. 手ブレ抑制（低域通過EMAフィルター）による滑らかで吸い付くような追従
+      const EMA_ALPHA = 0.65;
+      smoothNormX = smoothNormX * (1 - EMA_ALPHA) + targetNormX * EMA_ALPHA;
+      smoothNormY = smoothNormY * (1 - EMA_ALPHA) + targetNormY * EMA_ALPHA;
+
+      // 1フレーム（約16ms）に1回、絶対座標比率（xRatio, yRatio）をホストへ送信
       if (!laserSendScheduled) {
         laserSendScheduled = true;
         requestAnimationFrame(() => {
-          if (isLaserClutching && (Math.abs(accumLaserDx) > 0.05 || Math.abs(accumLaserDy) > 0.05)) {
+          if (isLaserClutching) {
             sendPeerMessage({
-              type: 'laser_move',
-              dx: Math.round(accumLaserDx * 10) / 10,
-              dy: Math.round(accumLaserDy * 10) / 10
+              type: 'laser_pos',
+              xRatio: Math.round(smoothNormX * 1000) / 1000,
+              yRatio: Math.round(smoothNormY * 1000) / 1000
             });
           }
-          accumLaserDx = 0;
-          accumLaserDy = 0;
           laserSendScheduled = false;
         });
       }
     }
 
-    // クラッチ押下開始（長押し中のみ照射）
+    // クラッチ押下開始（向けた方向を中央として照射開始）
     function handleClutchStart(e) {
       if (e) e.preventDefault();
       if (isLaserClutching) return;
       isLaserClutching = true;
-      smoothGx = 0;
-      smoothGy = 0;
-      accumLaserDx = 0;
-      accumLaserDy = 0;
+
+      // 現在のスマホの向きを「画面中央（原点）」としてロック
+      baseAlpha = latestAlpha;
+      baseBeta = latestBeta;
+      smoothNormX = 0.5;
+      smoothNormY = 0.5;
+
       if (btnLaserClutch) btnLaserClutch.classList.add('active');
 
       // 極小の触覚フィードバック（15ms）
@@ -2274,17 +2281,14 @@
       }
 
       sendPeerMessage({ type: 'laser_start' });
+      sendPeerMessage({ type: 'laser_pos', xRatio: 0.5, yRatio: 0.5 });
     }
 
-    // クラッチ終了（指を離すと即座に消去＆位置固定）
+    // クラッチ終了（指を離すと即座に消去＆いつでも楽な姿勢へリセット可能）
     function handleClutchEnd(e) {
       if (e) e.preventDefault();
       if (!isLaserClutching) return;
       isLaserClutching = false;
-      smoothGx = 0;
-      smoothGy = 0;
-      accumLaserDx = 0;
-      accumLaserDy = 0;
       if (btnLaserClutch) btnLaserClutch.classList.remove('active');
 
       sendPeerMessage({ type: 'laser_stop' });
@@ -2298,8 +2302,8 @@
     }
 
     async function openLaserMode() {
-      await requestGyroPermission();
-      window.addEventListener('devicemotion', onDeviceMotion, { passive: true });
+      await requestOrientationPermission();
+      window.addEventListener('deviceorientation', onDeviceOrientation, { passive: true });
       if (laserOverlay) {
         laserOverlay.classList.add('active');
       }
@@ -2321,7 +2325,7 @@
 
     function closeLaserMode() {
       handleClutchEnd();
-      window.removeEventListener('devicemotion', onDeviceMotion);
+      window.removeEventListener('deviceorientation', onDeviceOrientation);
       if (laserOverlay) {
         laserOverlay.classList.remove('active');
       }
@@ -4107,6 +4111,24 @@
       // 5. エア・レーザーポインター操作 (Air Laser Pointer)
       else if (data.type === 'laser_start') {
         hostLaserActive = true;
+      }
+      else if (data.type === 'laser_pos') {
+        hostLaserActive = true;
+        const targetX = data.xRatio * window.innerWidth;
+        const targetY = data.yRatio * window.innerHeight;
+        const dx = targetX - hostLaserTargetX;
+        const dy = targetY - hostLaserTargetY;
+        hostLaserTargetX = targetX;
+        hostLaserTargetY = targetY;
+
+        // Win32 Native Server (OS物理マウスカーソル) へも同期送信
+        if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+          sendToNativeServer({
+            type: 'mouse_move',
+            dx: Math.round(dx),
+            dy: Math.round(dy)
+          });
+        }
       }
       else if (data.type === 'laser_move') {
         hostLaserActive = true;
