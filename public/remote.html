@@ -1286,6 +1286,15 @@
       box-shadow: none !important;
     }
 
+    .host-camera-window.pip-active {
+      opacity: 0.45;
+      transition: opacity 0.2s ease;
+    }
+
+    .host-camera-window.pip-active:hover {
+      opacity: 0.95;
+    }
+
     .host-camera-bar {
       height: 38px;
       padding: 0 12px;
@@ -1387,6 +1396,12 @@
           <span>LIVE</span>
         </div>
         <div class="host-camera-actions">
+          <button type="button" id="btnHostCameraPip" class="btn-icon" aria-label="Float on Top" title="Float on Top">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+              <rect x="12" y="11" width="8" height="5" rx="1" fill="currentColor"></rect>
+            </svg>
+          </button>
           <button type="button" id="btnHostCameraExpand" class="btn-icon" aria-label="Expand/Restore">
             <svg id="iconHostExpand" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="15 3 21 3 21 9"></polyline>
@@ -2129,6 +2144,7 @@
     const hostCameraWindow = document.getElementById('hostCameraWindow');
     const hostCameraHeader = document.getElementById('hostCameraHeader');
     const hostCameraVideo = document.getElementById('hostCameraVideo');
+    const btnHostCameraPip = document.getElementById('btnHostCameraPip');
     const btnHostCameraExpand = document.getElementById('btnHostCameraExpand');
     const btnHostCameraClose = document.getElementById('btnHostCameraClose');
     const iconHostExpand = document.getElementById('iconHostExpand');
@@ -2276,6 +2292,9 @@
     }
 
     function closeHostCameraWindow() {
+      if (document.pictureInPictureElement) {
+        try { document.exitPictureInPicture(); } catch(e) {}
+      }
       if (!hostCameraOverlay) return;
       hostCameraOverlay.classList.add('hidden');
       if (hostCameraVideo) {
@@ -2284,6 +2303,19 @@
       if (activeHostMediaCall) {
         try { activeHostMediaCall.close(); } catch(e) {}
         activeHostMediaCall = null;
+      }
+    }
+
+    // OS最前面フローティングウィンドウ（Picture-in-Picture）の自動起動トライ
+    async function tryAutoEnterPip() {
+      if (!document.pictureInPictureEnabled || !hostCameraVideo) return;
+      try {
+        if (document.pictureInPictureElement !== hostCameraVideo) {
+          await hostCameraVideo.requestPictureInPicture();
+          console.log('[Camera PiP] 自動最前面フローティング起動に成功しました');
+        }
+      } catch (err) {
+        console.warn('[Camera PiP] 自動起動はスキップされました（画面内小窓で表示）:', err.message);
       }
     }
 
@@ -2300,6 +2332,34 @@
         if (iconHostExpand) iconHostExpand.style.display = 'block';
         if (iconHostCompress) iconHostCompress.style.display = 'none';
       }
+    }
+
+    // PC側: 最前面ウィンドウ（Picture-in-Picture）の切り替えボタン
+    if (btnHostCameraPip) {
+      btnHostCameraPip.addEventListener('click', async () => {
+        if (!document.pictureInPictureEnabled || !hostCameraVideo) return;
+        try {
+          if (document.pictureInPictureElement) {
+            await document.exitPictureInPicture();
+          } else {
+            await hostCameraVideo.requestPictureInPicture();
+          }
+        } catch (err) {
+          console.warn('[Camera PiP] PiP切り替えエラー:', err);
+        }
+      });
+    }
+
+    // Video要素のPiP状態イベントリスナー
+    if (hostCameraVideo) {
+      hostCameraVideo.addEventListener('enterpictureinpicture', () => {
+        console.log('[Camera PiP] Enter Picture-in-Picture');
+        if (hostCameraWindow) hostCameraWindow.classList.add('pip-active');
+      });
+      hostCameraVideo.addEventListener('leavepictureinpicture', () => {
+        console.log('[Camera PiP] Leave Picture-in-Picture');
+        if (hostCameraWindow) hostCameraWindow.classList.remove('pip-active');
+      });
     }
 
     // PC側: ウィンドウの全画面切り替えボタン
@@ -3979,7 +4039,9 @@
           console.log('[WebRTC Host] リモートカメラストリーム受信成功');
           if (hostCameraVideo) {
             hostCameraVideo.srcObject = remoteStream;
-            hostCameraVideo.play().catch(e => console.warn('[Camera] Video play error:', e));
+            hostCameraVideo.play().then(() => {
+              tryAutoEnterPip();
+            }).catch(e => console.warn('[Camera] Video play error:', e));
           }
           openHostCameraWindow(currentHostCameraLayout);
         });
@@ -4144,6 +4206,7 @@
       // 5. ライブカメラ制御
       else if (data.type === 'camera_start') {
         openHostCameraWindow(data.layout);
+        tryAutoEnterPip();
       }
       else if (data.type === 'camera_stop') {
         closeHostCameraWindow();
