@@ -319,7 +319,7 @@
       flex: 1;
     }
 
-    /* SVGワイヤー線アニメーション (PCからスマホへ2.5秒間ゆっくり優雅に伸びる) */
+    /* SVGワイヤー線アニメーション (PCからスマホへ1.4秒間心地よく伸びる) */
     .wire-line {
       stroke: #ffffff;
       stroke-width: 3.2;
@@ -327,7 +327,7 @@
       stroke-dasharray: 120;
       stroke-dashoffset: 120;
       filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.85));
-      transition: stroke-dashoffset 2.5s cubic-bezier(0.2, 0.8, 0.25, 1);
+      transition: stroke-dashoffset 1.4s cubic-bezier(0.2, 0.8, 0.25, 1);
     }
 
     .conn-blocker.state-connected .wire-line {
@@ -339,9 +339,9 @@
       align-items: center;
     }
 
-    /* ラインがスマホに届いた瞬間(2.5秒後)のリアクション */
+    /* ラインがスマホに届いた瞬間(1.4秒後)のリアクション */
     .conn-blocker.state-connected .toast-node.toast-phone {
-      animation: toastPhonePop 0.45s cubic-bezier(0.16, 1, 0.3, 1) 2.5s both;
+      animation: toastPhonePop 0.4s cubic-bezier(0.16, 1, 0.3, 1) 1.4s both;
     }
 
     @keyframes toastPhonePop {
@@ -362,7 +362,7 @@
       color: #ffffff;
       opacity: 0;
       transform: scale(0.4);
-      transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1) 2.5s, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) 2.5s;
+      transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1) 1.4s, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) 1.4s;
     }
 
     .conn-blocker.state-connected .toast-center-check {
@@ -2807,7 +2807,7 @@
       if (typeof isPeerHost !== 'undefined' && isPeerHost) return;
       if (!connBlocker) return;
 
-      // 接続完了状態に切り替え、2.5秒のワイヤーアニメーションをリフロー再描画
+      // 接続完了状態に切り替え、1.4秒のワイヤーアニメーションをリフロー再描画
       connBlocker.classList.remove('hidden');
       connBlocker.classList.remove('state-connected');
       void connBlocker.offsetWidth; // リフロー強制
@@ -2817,19 +2817,19 @@
 
       if (navigator.vibrate) try { navigator.vibrate([40, 70, 45]); } catch (e) {}
 
-      // 2.5秒ワイヤーアニメーション＋中央チェックマーク出現後、約3.8秒でフェードアウトして操作アンロック
+      // 1.4秒ワイヤーアニメーション＋中央チェックマーク出現後、約2.1秒でフェードアウトして操作アンロック
       clearTimeout(blockerTimeout);
       blockerTimeout = setTimeout(() => {
         connBlocker.classList.add('hidden');
-      }, 3800);
+      }, 2100);
     }
 
     // スマホとPCのペアリングが成立した瞬間のみに発火させる（ページ初期読込時の誤発火を完全防止）
     function triggerPairingAnimation() {
       const now = Date.now();
-      // ページ読み込み後1.0秒以内の初期化ガード、または直近3.5秒以内の連続発火を抑制
+      // ページ読み込み後1.0秒以内の初期化ガード、または直近2.2秒以内の連続発火を抑制
       if (now - pageLoadTimestamp < 1000) return;
-      if (now - lastPairingAnimTime < 3500) return;
+      if (now - lastPairingAnimTime < 2200) return;
       lastPairingAnimTime = now;
 
       const pills = [
