@@ -1187,20 +1187,14 @@
   <div id="flashOverlay" class="flash-overlay"></div>
   
   <!-- Connection Blocker & Toast (待機クルクル ＆ 2.5秒ワイヤー ＆ 中央チェックマーク) -->
-  <div id="connectionBlocker" class="conn-blocker" aria-live="polite">
+  <div id="connectionBlocker" class="conn-blocker hidden" aria-live="polite">
     <div class="blocker-container">
-      <!-- 1. 未接続時: 中央クルクル(スピナー) ＆ スキャン起動ボタン -->
+      <!-- 1. 未接続時: 中央クルクル(スピナー) -->
       <div class="blocker-waiting" id="blockerWaiting">
         <svg class="spinner-svg" width="52" height="52" viewBox="0 0 50 50">
           <circle cx="25" cy="25" r="20" fill="none" stroke="rgba(255, 255, 255, 0.12)" stroke-width="3.5"></circle>
           <circle cx="25" cy="25" r="20" fill="none" stroke="#ffffff" stroke-width="3.5" stroke-dasharray="80" stroke-dashoffset="60" stroke-linecap="round"></circle>
         </svg>
-        <button type="button" id="btnBlockerScan" class="blocker-scan-btn" aria-label="Scan PC QR">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-            <circle cx="12" cy="13" r="4"></circle>
-          </svg>
-        </button>
       </div>
 
       <!-- 2. 接続完了時: 2.5秒ワイヤーアニメーション ＆ 中央チェックマーク -->
@@ -1798,6 +1792,22 @@
       if (target) {
         target.classList.add('active');
         window.scrollTo(0, 0);
+      }
+
+      // スマホリモコン側で、未接続のままスライドやトラックパッド画面に入った場合は操作をブロック
+      if (connBlocker) {
+        const isClient = typeof isPeerHost !== 'undefined' && !isPeerHost;
+        const isConnected = lastConnectedState || 
+                            (typeof peerConn !== 'undefined' && peerConn && peerConn.open) || 
+                            (socket && socket.readyState === WebSocket.OPEN);
+        if (isClient && !isConnected && (viewId === 'viewSlideSwitch' || viewId === 'viewTrackpad')) {
+          clearTimeout(blockerTimeout);
+          connBlocker.classList.remove('state-connected');
+          connBlocker.classList.remove('hidden');
+        } else if (viewId === 'viewToolMenu') {
+          // メニュー画面ではブロッカーを隠し、ユーザーが自由にSCANやQRを選べるようにする
+          connBlocker.classList.add('hidden');
+        }
       }
     }
 
@@ -2784,21 +2794,17 @@
 
     // 接続待機＆接続完了ブロッキングオーバーレイの要素取得
     const connBlocker = document.getElementById('connectionBlocker');
-    const btnBlockerScan = document.getElementById('btnBlockerScan');
 
-    if (btnBlockerScan) {
-      btnBlockerScan.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (typeof openCameraScanner === 'function') {
-          openCameraScanner();
-        } else {
-          const scanBtn = document.getElementById('btnMenuScan');
-          if (scanBtn) scanBtn.click();
-        }
-      });
+    function isControllerViewActive() {
+      const slideView = document.getElementById('viewSlideSwitch');
+      const trackView = document.getElementById('viewTrackpad');
+      return (slideView && slideView.classList.contains('active')) || 
+             (trackView && trackView.classList.contains('active'));
     }
 
     function triggerConnectionAnimation() {
+      // PC側（isPeerHost === true）では全画面アニメーションを表示しない（作業やQR表示を邪魔しない）
+      if (typeof isPeerHost !== 'undefined' && isPeerHost) return;
       if (!connBlocker) return;
 
       // 接続完了状態に切り替え、2.5秒のワイヤーアニメーションをリフロー再描画
@@ -2869,16 +2875,13 @@
         }
       });
 
-      // 接続状態に応じたブロッカー表示制御
+      // スマホ（リモコン）側で、かつコントローラー画面（スライドやトラックパッド）操作中に未接続になった場合のみブロック
       const isClientDevice = typeof isPeerHost !== 'undefined' && !isPeerHost;
       if (connBlocker) {
-        if (!connected && isClientDevice) {
+        if (!connected && isClientDevice && isControllerViewActive()) {
           clearTimeout(blockerTimeout);
           connBlocker.classList.remove('state-connected');
           connBlocker.classList.remove('hidden');
-        } else if (connected) {
-          // WebSocketまたはWebRTCで接続確立した瞬間は確実にアンロック（アニメーション発火）
-          triggerPairingAnimation();
         }
       }
 
@@ -3284,11 +3287,10 @@
         }
         initHostPeer();
       } else {
-        // スマホで直接開いた場合（未接続時は中央にクルクルを表示して操作ブロック）
+        // スマホで直接開いた場合（メニュー画面を自由に操作可能にするため初期ブロッカーは非表示）
         isPeerHost = false;
         if (connBlocker) {
-          connBlocker.classList.remove('hidden');
-          connBlocker.classList.remove('state-connected');
+          connBlocker.classList.add('hidden');
         }
       }
     }
@@ -3480,7 +3482,6 @@
     // ホスト側でのコマンド・マウス操作受信処理 (Win32 Native API へ完全直結)
     function handleIncomingPeerData(data) {
       if (!data) return;
-      triggerPairingAnimation();
 
       // 1. スライド操作コマンド (OSの最前面PowerPoint / Googleスライド / PDF送り)
       if (data.type === 'command') {
