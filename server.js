@@ -461,7 +461,16 @@ function handleNativeAction(data) {
           data.type === 'clipboard' || data.type === 'keyboard_text' || 
           data.type === 'keyboard_key') {
         handleNativeAction(data);
-        return;
+      }
+
+      // スマホから届いた操作メッセージを PC 側クライアントへもリレー送信（WebRTCフォールバック）
+      if (clientInfo.type !== 'pc') {
+        const rawMsg = JSON.stringify(data);
+        for (const [sock, inf] of clients.entries()) {
+          if (sock !== ws && sock.readyState === sock.OPEN && inf.type === 'pc') {
+            sock.send(rawMsg);
+          }
+        }
       }
 
       if (data.type === 'command') {
