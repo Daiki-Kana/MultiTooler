@@ -1175,8 +1175,7 @@
       flex: 1;
       display: flex;
       flex-direction: column;
-      padding: 12px 14px max(20px, env(safe-area-inset-bottom, 20px)) 14px;
-      gap: 12px;
+      padding: 6px 12px max(16px, env(safe-area-inset-bottom, 16px)) 12px;
       box-sizing: border-box;
       min-height: 0;
       overflow: hidden;
@@ -1184,7 +1183,7 @@
 
     .camera-viewfinder {
       flex: 1;
-      background: #09090b;
+      background: #000000;
       border-radius: 24px;
       overflow: hidden;
       position: relative;
@@ -1215,76 +1214,7 @@
       opacity: 1;
     }
 
-    .camera-bottom-bar {
-      height: 76px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      flex-shrink: 0;
-    }
-
-    .camera-nav-btn {
-      flex: 1;
-      height: 100%;
-      background: var(--color-surface-1);
-      border: none;
-      border-radius: 20px;
-      color: var(--color-ink);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: background-color 0.12s ease, transform 0.08s ease;
-      user-select: none;
-      -webkit-user-select: none;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    .camera-nav-btn:active {
-      background: var(--color-surface-2);
-      transform: scale(0.96);
-    }
-
-    .camera-nav-next {
-      background: var(--color-ink);
-      color: #ffffff;
-    }
-
-    .camera-nav-next:active {
-      background: #000000;
-      transform: scale(0.96);
-    }
-
-    .camera-action-btn {
-      width: 76px;
-      height: 100%;
-      background: var(--color-surface-1);
-      border: none;
-      border-radius: 20px;
-      color: var(--color-ink);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: background-color 0.12s ease, transform 0.08s ease;
-      user-select: none;
-      -webkit-user-select: none;
-      -webkit-tap-highlight-color: transparent;
-      flex-shrink: 0;
-    }
-
-    .camera-action-btn:active {
-      transform: scale(0.94);
-      background: var(--color-surface-2);
-    }
-
-    .camera-action-btn.paused svg circle {
-      fill: #8e8e93;
-      stroke: #8e8e93;
-    }
-
-    /* PC ホスト側: フローティング PiP / フルスクリーン オーバーレイ */
+    /* PC ホスト側: 右下コンパクトポップアップ小窓 (PiP) / フルスクリーン */
     .host-camera-overlay {
       position: fixed;
       top: 0;
@@ -1294,7 +1224,7 @@
       pointer-events: none;
       z-index: 999990;
       opacity: 1;
-      transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: opacity 0.2s ease;
     }
 
     .host-camera-overlay.hidden {
@@ -1304,27 +1234,42 @@
 
     .host-camera-window {
       position: fixed;
-      right: 28px;
-      bottom: 28px;
-      width: 480px;
-      height: 320px;
+      right: 24px;
+      bottom: 24px;
+      width: 320px;
+      height: 214px;
       max-width: calc(100vw - 32px);
       max-height: calc(100vh - 32px);
       background: #09090b;
-      border-radius: 24px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+      border-radius: 20px;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
       border: none;
       display: flex;
       flex-direction: column;
       overflow: hidden;
       pointer-events: auto;
-      transform: scale(1);
-      transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), 
-                  height 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-                  right 0.3s cubic-bezier(0.16, 1, 0.3, 1), 
-                  bottom 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-                  border-radius 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-                  transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      transform-origin: bottom right;
+      animation: cameraPopIn 0.38s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+      transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1), 
+                  height 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                  right 0.25s cubic-bezier(0.16, 1, 0.3, 1), 
+                  bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                  border-radius 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes cameraPopIn {
+      0% {
+        transform: scale(0.65) translateY(36px);
+        opacity: 0;
+      }
+      70% {
+        transform: scale(1.03) translateY(-3px);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(1) translateY(0);
+        opacity: 1;
+      }
     }
 
     .host-camera-window.fullscreen {
@@ -1341,8 +1286,8 @@
     }
 
     .host-camera-bar {
-      height: 48px;
-      padding: 0 16px;
+      height: 38px;
+      padding: 0 12px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -1362,8 +1307,8 @@
     .host-camera-pill {
       display: flex;
       align-items: center;
-      gap: 7px;
-      font-size: 11px;
+      gap: 6px;
+      font-size: 10px;
       font-weight: 700;
       letter-spacing: 0.8px;
       color: #ffffff;
@@ -1371,8 +1316,8 @@
     }
 
     .live-dot {
-      width: 7px;
-      height: 7px;
+      width: 6px;
+      height: 6px;
       background: #ff3b30;
       border-radius: 50%;
       animation: livePulse 1.8s infinite ease-in-out;
@@ -1386,16 +1331,16 @@
     .host-camera-actions {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
     }
 
     .host-camera-actions .btn-icon {
       color: #ffffff;
       opacity: 0.75;
       background: transparent;
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
     }
 
     .host-camera-actions .btn-icon:hover {
@@ -1878,20 +1823,6 @@
             <path d="m6 2 3 3-3 3"></path>
           </svg>
         </button>
-
-        <!-- PC Layout Toggle (全画面 ↔ PiP小窓切り替え) -->
-        <button type="button" id="btnCameraLayoutToggle" class="btn-icon" aria-label="Toggle Layout">
-          <svg id="iconLayoutPip" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="2" y="4" width="20" height="16" rx="2"></rect>
-            <rect x="12" y="11" width="8" height="7" rx="1" fill="currentColor"></rect>
-          </svg>
-          <svg id="iconLayoutFull" style="display:none;" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="15 3 21 3 21 9"></polyline>
-            <polyline points="9 21 3 21 3 15"></polyline>
-            <line x1="21" y1="3" x2="14" y2="10"></line>
-            <line x1="3" y1="21" x2="10" y2="14"></line>
-          </svg>
-        </button>
       </div>
     </header>
 
@@ -1904,28 +1835,6 @@
             <circle cx="25" cy="25" r="20" fill="none" stroke="#ffffff" stroke-width="4" stroke-dasharray="80" stroke-dashoffset="60" stroke-linecap="round"></circle>
           </svg>
         </div>
-      </div>
-
-      <!-- 下部スライド操作バー（カメラ配信しながら前後のスライドを切り替え可能） -->
-      <div class="camera-bottom-bar">
-        <button type="button" id="btnCameraSlidePrev" class="camera-nav-btn" aria-label="Previous Slide">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="15 18 9 12 15 6"></polyline>
-          </svg>
-        </button>
-
-        <button type="button" id="btnCameraPauseToggle" class="camera-action-btn" aria-label="Toggle Pause">
-          <!-- 配信中アイコン（録画/配信中ドット） -->
-          <svg id="iconCameraStreaming" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="6" fill="#ff3b30" stroke="#ff3b30"></circle>
-          </svg>
-        </button>
-
-        <button type="button" id="btnCameraSlideNext" class="camera-nav-btn camera-nav-next" aria-label="Next Slide">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="9 18 15 12 9 6"></polyline>
-          </svg>
-        </button>
       </div>
     </main>
   </div>
@@ -2211,14 +2120,8 @@
     const cardLiveCamera = document.getElementById('cardLiveCamera');
     const btnCameraBack = document.getElementById('btnCameraBack');
     const btnCameraFlip = document.getElementById('btnCameraFlip');
-    const btnCameraLayoutToggle = document.getElementById('btnCameraLayoutToggle');
-    const iconLayoutPip = document.getElementById('iconLayoutPip');
-    const iconLayoutFull = document.getElementById('iconLayoutFull');
     const liveCameraVideo = document.getElementById('liveCameraVideo');
     const cameraLoadingSpinner = document.getElementById('cameraLoadingSpinner');
-    const btnCameraSlidePrev = document.getElementById('btnCameraSlidePrev');
-    const btnCameraSlideNext = document.getElementById('btnCameraSlideNext');
-    const btnCameraPauseToggle = document.getElementById('btnCameraPauseToggle');
 
     // PC（ホスト）側要素
     const hostCameraOverlay = document.getElementById('hostCameraOverlay');
@@ -2235,13 +2138,19 @@
     let activeMediaCall = null;
     let activeHostMediaCall = null;
     let isCameraStreaming = false;
-    let isCameraVideoPaused = false;
     let currentCameraFacing = 'environment'; // デフォルトは背面（書画カメラとして資料・手元を写す）
-    let currentHostCameraLayout = 'pip'; // 'pip' または 'fullscreen'
     let isHostCameraFullscreen = false;
 
-    // スマホ側: ライブカメラ配信の開始
+    // スマホ側: ライブカメラ配信の開始（タップした瞬間にPCへ即時ポップアップ通知）
     async function startLiveCamera() {
+      // 1. タップした瞬間にPCへ「右下に小窓をポップアップせよ」と即時送信！
+      sendPeerMessage({
+        type: 'camera_start',
+        layout: 'pip'
+      });
+      if (navigator.vibrate) try { navigator.vibrate(20); } catch(e) {}
+
+      // 2. スマホ画面を全画面ファインダーに切り替え
       switchView('viewLiveCamera');
       if (cameraLoadingSpinner) cameraLoadingSpinner.classList.add('active');
 
@@ -2264,14 +2173,6 @@
         }
         if (cameraLoadingSpinner) cameraLoadingSpinner.classList.remove('active');
         isCameraStreaming = true;
-        isCameraVideoPaused = false;
-        if (btnCameraPauseToggle) btnCameraPauseToggle.classList.remove('paused');
-
-        // ホストへカメラ開始を通知
-        sendPeerMessage({
-          type: 'camera_start',
-          layout: currentHostCameraLayout
-        });
 
         // PeerJS 経由でメディアストリームを発信
         const targetHostId = (typeof targetHostPeerId !== 'undefined' && targetHostPeerId) ? targetHostPeerId : (typeof peerRoomId !== 'undefined' ? peerRoomId : null);
@@ -2290,6 +2191,7 @@
       } catch (err) {
         console.error('[Camera] getUserMedia failed:', err);
         if (cameraLoadingSpinner) cameraLoadingSpinner.classList.remove('active');
+        sendPeerMessage({ type: 'camera_stop' });
         switchView('viewToolMenu');
       }
     }
@@ -2308,7 +2210,6 @@
         activeMediaCall = null;
       }
       isCameraStreaming = false;
-      isCameraVideoPaused = false;
 
       // ホストへ停止を通知
       sendPeerMessage({ type: 'camera_stop' });
@@ -2360,53 +2261,17 @@
       }
     }
 
-    // スマホ側: 映像の一時停止 / 再開
-    function toggleCameraPause() {
-      if (!liveCameraStream) return;
-      const videoTrack = liveCameraStream.getVideoTracks()[0];
-      if (!videoTrack) return;
-
-      isCameraVideoPaused = !isCameraVideoPaused;
-      videoTrack.enabled = !isCameraVideoPaused;
-
-      if (btnCameraPauseToggle) {
-        if (isCameraVideoPaused) {
-          btnCameraPauseToggle.classList.add('paused');
-        } else {
-          btnCameraPauseToggle.classList.remove('paused');
-        }
-      }
-    }
-
-    // スマホ側: PCの表示レイアウト（PiP ↔ Fullscreen）切り替え
-    function toggleHostCameraLayout() {
-      currentHostCameraLayout = (currentHostCameraLayout === 'pip') ? 'fullscreen' : 'pip';
-      updateLayoutToggleUI();
-      sendPeerMessage({
-        type: 'camera_layout',
-        layout: currentHostCameraLayout
-      });
-      if (navigator.vibrate) try { navigator.vibrate(20); } catch(e) {}
-    }
-
-    function updateLayoutToggleUI() {
-      if (!iconLayoutPip || !iconLayoutFull) return;
-      if (currentHostCameraLayout === 'pip') {
-        iconLayoutPip.style.display = 'block';
-        iconLayoutFull.style.display = 'none';
-      } else {
-        iconLayoutPip.style.display = 'none';
-        iconLayoutFull.style.display = 'block';
-      }
-    }
-
     // PC ホスト側: カメラウィンドウの表示・閉じる・レイアウト制御
     function openHostCameraWindow(layout) {
-      if (!hostCameraOverlay) return;
+      if (!hostCameraOverlay || !hostCameraWindow) return;
       hostCameraOverlay.classList.remove('hidden');
-      if (layout) {
-        setHostCameraLayout(layout);
-      }
+
+      // バウンスポップアップアニメーションを確実に再トリガー
+      hostCameraWindow.style.animation = 'none';
+      void hostCameraWindow.offsetWidth; // リフロー強制
+      hostCameraWindow.style.animation = '';
+
+      setHostCameraLayout(layout || 'pip');
     }
 
     function closeHostCameraWindow() {
@@ -2455,8 +2320,8 @@
     let isDraggingHostCam = false;
     let dragStartX = 0;
     let dragStartY = 0;
-    let winStartRight = 28;
-    let winStartBottom = 28;
+    let winStartRight = 24;
+    let winStartBottom = 24;
 
     if (hostCameraHeader && hostCameraWindow) {
       hostCameraHeader.addEventListener('pointerdown', (e) => {
@@ -2502,25 +2367,6 @@
     if (cardLiveCamera) cardLiveCamera.addEventListener('click', startLiveCamera);
     if (btnCameraBack) btnCameraBack.addEventListener('click', stopLiveCamera);
     if (btnCameraFlip) btnCameraFlip.addEventListener('click', flipLiveCamera);
-    if (btnCameraPauseToggle) btnCameraPauseToggle.addEventListener('click', toggleCameraPause);
-    if (btnCameraLayoutToggle) btnCameraLayoutToggle.addEventListener('click', toggleHostCameraLayout);
-
-    // カメラビュー内のスライド戻る/進む
-    if (btnCameraSlidePrev) {
-      btnCameraSlidePrev.addEventListener('click', () => {
-        currentSlide = Math.max(1, currentSlide - 1);
-        sendPeerMessage({ type: 'command', action: 'prev' });
-        if (navigator.vibrate) try { navigator.vibrate(25); } catch(e) {}
-      });
-    }
-
-    if (btnCameraSlideNext) {
-      btnCameraSlideNext.addEventListener('click', () => {
-        currentSlide++;
-        sendPeerMessage({ type: 'command', action: 'next' });
-        if (navigator.vibrate) try { navigator.vibrate(25); } catch(e) {}
-      });
-    }
 
 
 
