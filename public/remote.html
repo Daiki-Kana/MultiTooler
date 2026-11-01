@@ -321,94 +321,26 @@
       width: 48px;
     }
 
-    /* Tech Data Link Wire (洗練された白黒ミニマル・テックアニメーション) */
-    .wire-tech-link {
+    .wire-direct {
       display: flex;
       align-items: center;
-      position: relative;
+      width: 100%;
     }
 
-    /* 1. 薄いガイドレール */
-    .wire-rail {
-      stroke: rgba(0, 0, 0, 0.1);
-      stroke-width: 1.5;
-      stroke-linecap: round;
-    }
-
-    /* 2. 精密な端子ポートドット */
-    .wire-terminal {
-      fill: #111113;
-      transform-origin: center;
-      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
-    }
-
-    .terminal-left {
-      transform: scale(0.7);
-      opacity: 0.25;
-    }
-
-    .conn-blocker.state-connected .terminal-left {
-      transform: scale(1);
-      opacity: 1;
-    }
-
-    .terminal-right {
-      transform: scale(0.7);
-      opacity: 0.25;
-      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) 1.1s, opacity 0.35s ease 1.1s;
-    }
-
-    .conn-blocker.state-connected .terminal-right {
-      transform: scale(1);
-      opacity: 1;
-    }
-
-    /* 3. メインシグナル線 (左から右へ滑らかにスルスルと自然に伸びる) */
-    .wire-signal {
+    /* ワイヤー線アニメーション (PCからスマホへ一本のラインがスッと淀みなく伸びる) */
+    .wire-line {
       stroke: #111113;
-      stroke-width: 2.2;
+      stroke-width: 2.8;
       stroke-linecap: round;
       fill: none;
-      stroke-dasharray: 40;
-      stroke-dashoffset: 40;
+      stroke-dasharray: 48;
+      stroke-dashoffset: 48;
       will-change: stroke-dashoffset;
-      transition: stroke-dashoffset 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+      transition: stroke-dashoffset 0.75s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    .conn-blocker.state-connected .wire-signal {
+    .conn-blocker.state-connected .wire-line {
       stroke-dashoffset: 0;
-    }
-
-    /* 4. 流れるデータパケット（光の粒子シグナルがサーッと駆け抜けるパルス） */
-    .wire-packet {
-      stroke: #111113;
-      stroke-width: 2.2;
-      stroke-linecap: round;
-      fill: none;
-      stroke-dasharray: 6 34;
-      stroke-dashoffset: 40;
-      opacity: 0;
-    }
-
-    .conn-blocker.state-connected .wire-packet {
-      animation: dataPacketFlow 1.8s cubic-bezier(0.22, 1, 0.36, 1) 1.15s infinite;
-    }
-
-    @keyframes dataPacketFlow {
-      0% {
-        stroke-dashoffset: 40;
-        opacity: 0;
-      }
-      20% {
-        opacity: 0.9;
-      }
-      80% {
-        opacity: 0.9;
-      }
-      100% {
-        stroke-dashoffset: -40;
-        opacity: 0;
-      }
     }
 
     /* 中央チェックマーク (白黒モノトーン・純白背景に映える黒丸・白チェック) */
@@ -423,7 +355,7 @@
       color: #ffffff;
       opacity: 0;
       transform: scale(0.4);
-      transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1) 1.25s, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) 1.25s;
+      transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0.8s, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) 0.8s;
     }
 
     .conn-blocker.state-connected .toast-center-check {
@@ -1522,22 +1454,11 @@
             </svg>
           </div>
 
-          <!-- Wire Area (PC -> Smartphone Tech Data Link) -->
+          <!-- Wire Area (PC -> Smartphone Direct Link) -->
           <div class="toast-wire-area" id="toastWireArea">
-            <div class="wire-tech-link">
+            <div class="wire-direct">
               <svg class="wire-svg" viewBox="0 0 48 20" width="48" height="20" fill="none">
-                <!-- 1. 薄いガイドレール -->
-                <line x1="4" y1="10" x2="44" y2="10" class="wire-rail"></line>
-                
-                <!-- 2. 精密な端子ポートドット -->
-                <circle cx="4" cy="10" r="2.2" class="wire-terminal terminal-left"></circle>
-                <circle cx="44" cy="10" r="2.2" class="wire-terminal terminal-right"></circle>
-                
-                <!-- 3. メインシグナル線 (左から右へ接続) -->
-                <line x1="4" y1="10" x2="44" y2="10" class="wire-signal"></line>
-
-                <!-- 4. 高速データパケット粒子 -->
-                <line x1="4" y1="10" x2="44" y2="10" class="wire-packet"></line>
+                <line x1="0" y1="10" x2="48" y2="10" class="wire-line"></line>
               </svg>
             </div>
           </div>
