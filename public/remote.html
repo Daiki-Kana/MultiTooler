@@ -1167,6 +1167,261 @@
       opacity: 0.9;
       width: 48px;
     }
+
+    /* --------------------------------------------------------------------------
+       Live Presentation Camera (Doc Cam / Mobile WebCam)
+       -------------------------------------------------------------------------- */
+    .camera-main-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 12px 14px max(20px, env(safe-area-inset-bottom, 20px)) 14px;
+      gap: 12px;
+      box-sizing: border-box;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .camera-viewfinder {
+      flex: 1;
+      background: #09090b;
+      border-radius: 24px;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #liveCameraVideo {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      border-radius: 24px;
+    }
+
+    .camera-spinner {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .camera-spinner.active {
+      opacity: 1;
+    }
+
+    .camera-bottom-bar {
+      height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .camera-nav-btn {
+      flex: 1;
+      height: 100%;
+      background: var(--color-surface-1);
+      border: none;
+      border-radius: 20px;
+      color: var(--color-ink);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background-color 0.12s ease, transform 0.08s ease;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .camera-nav-btn:active {
+      background: var(--color-surface-2);
+      transform: scale(0.96);
+    }
+
+    .camera-nav-next {
+      background: var(--color-ink);
+      color: #ffffff;
+    }
+
+    .camera-nav-next:active {
+      background: #000000;
+      transform: scale(0.96);
+    }
+
+    .camera-action-btn {
+      width: 76px;
+      height: 100%;
+      background: var(--color-surface-1);
+      border: none;
+      border-radius: 20px;
+      color: var(--color-ink);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background-color 0.12s ease, transform 0.08s ease;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      flex-shrink: 0;
+    }
+
+    .camera-action-btn:active {
+      transform: scale(0.94);
+      background: var(--color-surface-2);
+    }
+
+    .camera-action-btn.paused svg circle {
+      fill: #8e8e93;
+      stroke: #8e8e93;
+    }
+
+    /* PC ホスト側: フローティング PiP / フルスクリーン オーバーレイ */
+    .host-camera-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 999990;
+      opacity: 1;
+      transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .host-camera-overlay.hidden {
+      display: none;
+      opacity: 0;
+    }
+
+    .host-camera-window {
+      position: fixed;
+      right: 28px;
+      bottom: 28px;
+      width: 480px;
+      height: 320px;
+      max-width: calc(100vw - 32px);
+      max-height: calc(100vh - 32px);
+      background: #09090b;
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+      border: none;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      pointer-events: auto;
+      transform: scale(1);
+      transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), 
+                  height 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                  right 0.3s cubic-bezier(0.16, 1, 0.3, 1), 
+                  bottom 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                  border-radius 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                  transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .host-camera-window.fullscreen {
+      right: 0 !important;
+      bottom: 0 !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      max-width: 100vw !important;
+      max-height: 100vh !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+    }
+
+    .host-camera-bar {
+      height: 48px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(9, 9, 11, 0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      z-index: 10;
+      user-select: none;
+      cursor: grab;
+      border: none;
+    }
+
+    .host-camera-window.fullscreen .host-camera-bar {
+      cursor: default;
+    }
+
+    .host-camera-pill {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      color: #ffffff;
+      opacity: 0.9;
+    }
+
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      background: #ff3b30;
+      border-radius: 50%;
+      animation: livePulse 1.8s infinite ease-in-out;
+    }
+
+    @keyframes livePulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    .host-camera-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .host-camera-actions .btn-icon {
+      color: #ffffff;
+      opacity: 0.75;
+      background: transparent;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+    }
+
+    .host-camera-actions .btn-icon:hover {
+      opacity: 1;
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .host-camera-body {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      position: relative;
+      background: #000000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    #hostCameraVideo {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      background: #000000;
+    }
   </style>
 </head>
 <body>
@@ -1176,6 +1431,43 @@
   </video>
 
   <div id="flashOverlay" class="flash-overlay"></div>
+  
+  <!-- Host Presentation Camera Window / Overlay (PiP or Fullscreen, Borderless, Floating) -->
+  <div id="hostCameraOverlay" class="host-camera-overlay hidden">
+    <div class="host-camera-window" id="hostCameraWindow">
+      <header class="host-camera-bar" id="hostCameraHeader">
+        <div class="host-camera-pill">
+          <span class="live-dot"></span>
+          <span>LIVE</span>
+        </div>
+        <div class="host-camera-actions">
+          <button type="button" id="btnHostCameraExpand" class="btn-icon" aria-label="Expand/Restore">
+            <svg id="iconHostExpand" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <polyline points="9 21 3 21 3 15"></polyline>
+              <line x1="21" y1="3" x2="14" y2="10"></line>
+              <line x1="3" y1="21" x2="10" y2="14"></line>
+            </svg>
+            <svg id="iconHostCompress" style="display:none;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="4 14 10 14 10 20"></polyline>
+              <polyline points="20 10 14 10 14 4"></polyline>
+              <line x1="14" y1="10" x2="21" y2="3"></line>
+              <line x1="3" y1="21" x2="10" y2="14"></line>
+            </svg>
+          </button>
+          <button type="button" id="btnHostCameraClose" class="btn-icon" aria-label="Close">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      </header>
+      <div class="host-camera-body">
+        <video id="hostCameraVideo" autoplay playsinline></video>
+      </div>
+    </div>
+  </div>
   
   <!-- Connection Blocker & Toast (待機クルクル ＆ 2.5秒ワイヤー ＆ 中央チェックマーク) -->
   <div id="connectionBlocker" class="conn-blocker hidden" aria-live="polite">
@@ -1316,13 +1608,13 @@
         <span>Trackpad</span>
       </button>
 
-      <!-- Scan Camera Card -->
-      <button type="button" class="menu-card" id="cardScanCamera" aria-label="Scan Camera">
+      <!-- Live Presentation Camera Card -->
+      <button type="button" class="menu-card" id="cardLiveCamera" aria-label="Camera">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
           <circle cx="12" cy="13" r="4"></circle>
         </svg>
-        <span>Scan</span>
+        <span>Camera</span>
       </button>
 
       <!-- Connect QR Card -->
@@ -1538,6 +1830,102 @@
             </svg>
           </button>
         </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- 4. Live Presentation Camera View (Doc Cam / Mobile WebCam, Fullscreen Viewfinder) -->
+  <div id="viewLiveCamera" class="view-container">
+    <header class="bar">
+      <div class="bar-group">
+        <!-- Back Icon (戻る & カメラ停止) -->
+        <button type="button" id="btnCameraBack" class="btn-icon" aria-label="Back">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+        </button>
+
+        <div class="connection-pill disconnected" id="cameraConnPill" data-route="cloud" aria-label="Connection Status">
+          <span class="route-icon route-wifi">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+              <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+              <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+              <line x1="12" y1="20" x2="12.01" y2="20"></line>
+            </svg>
+          </span>
+          <span class="route-icon route-cloud">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+            </svg>
+          </span>
+          <span class="status-check">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </span>
+        </div>
+      </div>
+
+      <div class="bar-group">
+        <!-- Switch Camera (イン/アウト反転) -->
+        <button type="button" id="btnCameraFlip" class="btn-icon" aria-label="Flip Camera">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 19H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"></path>
+            <path d="M13 5h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-5"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="m18 22-3-3 3-3"></path>
+            <path d="m6 2 3 3-3 3"></path>
+          </svg>
+        </button>
+
+        <!-- PC Layout Toggle (全画面 ↔ PiP小窓切り替え) -->
+        <button type="button" id="btnCameraLayoutToggle" class="btn-icon" aria-label="Toggle Layout">
+          <svg id="iconLayoutPip" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+            <rect x="12" y="11" width="8" height="7" rx="1" fill="currentColor"></rect>
+          </svg>
+          <svg id="iconLayoutFull" style="display:none;" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <polyline points="9 21 3 21 3 15"></polyline>
+            <line x1="21" y1="3" x2="14" y2="10"></line>
+            <line x1="3" y1="21" x2="10" y2="14"></line>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="camera-main-container">
+      <div class="camera-viewfinder">
+        <video id="liveCameraVideo" autoplay playsinline muted></video>
+        <div id="cameraLoadingSpinner" class="camera-spinner active">
+          <svg class="spinner-svg" width="36" height="36" viewBox="0 0 50 50">
+            <circle cx="25" cy="25" r="20" fill="none" stroke="rgba(255, 255, 255, 0.2)" stroke-width="4"></circle>
+            <circle cx="25" cy="25" r="20" fill="none" stroke="#ffffff" stroke-width="4" stroke-dasharray="80" stroke-dashoffset="60" stroke-linecap="round"></circle>
+          </svg>
+        </div>
+      </div>
+
+      <!-- 下部スライド操作バー（カメラ配信しながら前後のスライドを切り替え可能） -->
+      <div class="camera-bottom-bar">
+        <button type="button" id="btnCameraSlidePrev" class="camera-nav-btn" aria-label="Previous Slide">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+        </button>
+
+        <button type="button" id="btnCameraPauseToggle" class="camera-action-btn" aria-label="Toggle Pause">
+          <!-- 配信中アイコン（録画/配信中ドット） -->
+          <svg id="iconCameraStreaming" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="6" fill="#ff3b30" stroke="#ff3b30"></circle>
+          </svg>
+        </button>
+
+        <button type="button" id="btnCameraSlideNext" class="camera-nav-btn camera-nav-next" aria-label="Next Slide">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </button>
       </div>
     </main>
   </div>
@@ -1815,6 +2203,324 @@
       pauseTimer();
       switchView('viewToolMenu');
     });
+
+    // --------------------------------------------------------------------------
+    // Live Presentation Camera (Doc Cam / Mobile WebCam)
+    // --------------------------------------------------------------------------
+    // スマホ側要素
+    const cardLiveCamera = document.getElementById('cardLiveCamera');
+    const btnCameraBack = document.getElementById('btnCameraBack');
+    const btnCameraFlip = document.getElementById('btnCameraFlip');
+    const btnCameraLayoutToggle = document.getElementById('btnCameraLayoutToggle');
+    const iconLayoutPip = document.getElementById('iconLayoutPip');
+    const iconLayoutFull = document.getElementById('iconLayoutFull');
+    const liveCameraVideo = document.getElementById('liveCameraVideo');
+    const cameraLoadingSpinner = document.getElementById('cameraLoadingSpinner');
+    const btnCameraSlidePrev = document.getElementById('btnCameraSlidePrev');
+    const btnCameraSlideNext = document.getElementById('btnCameraSlideNext');
+    const btnCameraPauseToggle = document.getElementById('btnCameraPauseToggle');
+
+    // PC（ホスト）側要素
+    const hostCameraOverlay = document.getElementById('hostCameraOverlay');
+    const hostCameraWindow = document.getElementById('hostCameraWindow');
+    const hostCameraHeader = document.getElementById('hostCameraHeader');
+    const hostCameraVideo = document.getElementById('hostCameraVideo');
+    const btnHostCameraExpand = document.getElementById('btnHostCameraExpand');
+    const btnHostCameraClose = document.getElementById('btnHostCameraClose');
+    const iconHostExpand = document.getElementById('iconHostExpand');
+    const iconHostCompress = document.getElementById('iconHostCompress');
+
+    // カメラ状態管理
+    let liveCameraStream = null;
+    let activeMediaCall = null;
+    let activeHostMediaCall = null;
+    let isCameraStreaming = false;
+    let isCameraVideoPaused = false;
+    let currentCameraFacing = 'environment'; // デフォルトは背面（書画カメラとして資料・手元を写す）
+    let currentHostCameraLayout = 'pip'; // 'pip' または 'fullscreen'
+    let isHostCameraFullscreen = false;
+
+    // スマホ側: ライブカメラ配信の開始
+    async function startLiveCamera() {
+      switchView('viewLiveCamera');
+      if (cameraLoadingSpinner) cameraLoadingSpinner.classList.add('active');
+
+      try {
+        const constraints = {
+          video: {
+            facingMode: { ideal: currentCameraFacing },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        liveCameraStream = stream;
+
+        if (liveCameraVideo) {
+          liveCameraVideo.srcObject = stream;
+          liveCameraVideo.play().catch(() => {});
+        }
+        if (cameraLoadingSpinner) cameraLoadingSpinner.classList.remove('active');
+        isCameraStreaming = true;
+        isCameraVideoPaused = false;
+        if (btnCameraPauseToggle) btnCameraPauseToggle.classList.remove('paused');
+
+        // ホストへカメラ開始を通知
+        sendPeerMessage({
+          type: 'camera_start',
+          layout: currentHostCameraLayout
+        });
+
+        // PeerJS 経由でメディアストリームを発信
+        const targetHostId = (typeof targetHostPeerId !== 'undefined' && targetHostPeerId) ? targetHostPeerId : (typeof peerRoomId !== 'undefined' ? peerRoomId : null);
+        if (peer && targetHostId) {
+          try {
+            activeMediaCall = peer.call(targetHostId, stream);
+            if (activeMediaCall) {
+              activeMediaCall.on('error', (err) => {
+                console.warn('[Camera] Media call error:', err);
+              });
+            }
+          } catch (e) {
+            console.warn('[Camera] Failed to call peer:', e);
+          }
+        }
+      } catch (err) {
+        console.error('[Camera] getUserMedia failed:', err);
+        if (cameraLoadingSpinner) cameraLoadingSpinner.classList.remove('active');
+        switchView('viewToolMenu');
+      }
+    }
+
+    // スマホ側: ライブカメラ配信の終了
+    function stopLiveCamera() {
+      if (liveCameraStream) {
+        liveCameraStream.getTracks().forEach(track => track.stop());
+        liveCameraStream = null;
+      }
+      if (liveCameraVideo) {
+        liveCameraVideo.srcObject = null;
+      }
+      if (activeMediaCall) {
+        try { activeMediaCall.close(); } catch(e) {}
+        activeMediaCall = null;
+      }
+      isCameraStreaming = false;
+      isCameraVideoPaused = false;
+
+      // ホストへ停止を通知
+      sendPeerMessage({ type: 'camera_stop' });
+      switchView('viewToolMenu');
+    }
+
+    // スマホ側: インカメラ / アウトカメラのシームレス反転
+    async function flipLiveCamera() {
+      if (!isCameraStreaming) return;
+      currentCameraFacing = (currentCameraFacing === 'environment') ? 'user' : 'environment';
+
+      if (cameraLoadingSpinner) cameraLoadingSpinner.classList.add('active');
+
+      if (liveCameraStream) {
+        liveCameraStream.getTracks().forEach(t => t.stop());
+      }
+
+      try {
+        const newStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: currentCameraFacing },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        });
+        liveCameraStream = newStream;
+
+        if (liveCameraVideo) {
+          liveCameraVideo.srcObject = newStream;
+          liveCameraVideo.play().catch(() => {});
+        }
+        if (cameraLoadingSpinner) cameraLoadingSpinner.classList.remove('active');
+
+        // WebRTC 通信中のビデオトラックを replaceTrack で瞬時に差し替え
+        if (activeMediaCall && activeMediaCall.peerConnection) {
+          const senders = activeMediaCall.peerConnection.getSenders();
+          const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+          if (videoSender) {
+            const newVideoTrack = newStream.getVideoTracks()[0];
+            if (newVideoTrack) {
+              videoSender.replaceTrack(newVideoTrack).catch(e => console.warn('[Camera] replaceTrack failed:', e));
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[Camera] Flip failed:', err);
+        if (cameraLoadingSpinner) cameraLoadingSpinner.classList.remove('active');
+      }
+    }
+
+    // スマホ側: 映像の一時停止 / 再開
+    function toggleCameraPause() {
+      if (!liveCameraStream) return;
+      const videoTrack = liveCameraStream.getVideoTracks()[0];
+      if (!videoTrack) return;
+
+      isCameraVideoPaused = !isCameraVideoPaused;
+      videoTrack.enabled = !isCameraVideoPaused;
+
+      if (btnCameraPauseToggle) {
+        if (isCameraVideoPaused) {
+          btnCameraPauseToggle.classList.add('paused');
+        } else {
+          btnCameraPauseToggle.classList.remove('paused');
+        }
+      }
+    }
+
+    // スマホ側: PCの表示レイアウト（PiP ↔ Fullscreen）切り替え
+    function toggleHostCameraLayout() {
+      currentHostCameraLayout = (currentHostCameraLayout === 'pip') ? 'fullscreen' : 'pip';
+      updateLayoutToggleUI();
+      sendPeerMessage({
+        type: 'camera_layout',
+        layout: currentHostCameraLayout
+      });
+      if (navigator.vibrate) try { navigator.vibrate(20); } catch(e) {}
+    }
+
+    function updateLayoutToggleUI() {
+      if (!iconLayoutPip || !iconLayoutFull) return;
+      if (currentHostCameraLayout === 'pip') {
+        iconLayoutPip.style.display = 'block';
+        iconLayoutFull.style.display = 'none';
+      } else {
+        iconLayoutPip.style.display = 'none';
+        iconLayoutFull.style.display = 'block';
+      }
+    }
+
+    // PC ホスト側: カメラウィンドウの表示・閉じる・レイアウト制御
+    function openHostCameraWindow(layout) {
+      if (!hostCameraOverlay) return;
+      hostCameraOverlay.classList.remove('hidden');
+      if (layout) {
+        setHostCameraLayout(layout);
+      }
+    }
+
+    function closeHostCameraWindow() {
+      if (!hostCameraOverlay) return;
+      hostCameraOverlay.classList.add('hidden');
+      if (hostCameraVideo) {
+        hostCameraVideo.srcObject = null;
+      }
+      if (activeHostMediaCall) {
+        try { activeHostMediaCall.close(); } catch(e) {}
+        activeHostMediaCall = null;
+      }
+    }
+
+    function setHostCameraLayout(layout) {
+      if (!hostCameraWindow) return;
+      if (layout === 'fullscreen') {
+        isHostCameraFullscreen = true;
+        hostCameraWindow.classList.add('fullscreen');
+        if (iconHostExpand) iconHostExpand.style.display = 'none';
+        if (iconHostCompress) iconHostCompress.style.display = 'block';
+      } else {
+        isHostCameraFullscreen = false;
+        hostCameraWindow.classList.remove('fullscreen');
+        if (iconHostExpand) iconHostExpand.style.display = 'block';
+        if (iconHostCompress) iconHostCompress.style.display = 'none';
+      }
+    }
+
+    // PC側: ウィンドウの全画面切り替えボタン
+    if (btnHostCameraExpand) {
+      btnHostCameraExpand.addEventListener('click', () => {
+        setHostCameraLayout(isHostCameraFullscreen ? 'pip' : 'fullscreen');
+      });
+    }
+
+    // PC側: ウィンドウの直接クローズ
+    if (btnHostCameraClose) {
+      btnHostCameraClose.addEventListener('click', () => {
+        closeHostCameraWindow();
+        sendPeerMessage({ type: 'camera_closed_by_host' });
+      });
+    }
+
+    // PC側: ウィンドウのヘッダードラッグ移動
+    let isDraggingHostCam = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let winStartRight = 28;
+    let winStartBottom = 28;
+
+    if (hostCameraHeader && hostCameraWindow) {
+      hostCameraHeader.addEventListener('pointerdown', (e) => {
+        if (isHostCameraFullscreen) return;
+        if (e.target.closest('button')) return;
+        isDraggingHostCam = true;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+
+        const rect = hostCameraWindow.getBoundingClientRect();
+        winStartRight = window.innerWidth - rect.right;
+        winStartBottom = window.innerHeight - rect.bottom;
+
+        try { hostCameraHeader.setPointerCapture(e.pointerId); } catch(err) {}
+      });
+
+      hostCameraHeader.addEventListener('pointermove', (e) => {
+        if (!isDraggingHostCam || isHostCameraFullscreen) return;
+        const dx = e.clientX - dragStartX;
+        const dy = e.clientY - dragStartY;
+
+        let newRight = winStartRight - dx;
+        let newBottom = winStartBottom - dy;
+
+        newRight = Math.max(10, Math.min(window.innerWidth - 100, newRight));
+        newBottom = Math.max(10, Math.min(window.innerHeight - 80, newBottom));
+
+        hostCameraWindow.style.right = `${newRight}px`;
+        hostCameraWindow.style.bottom = `${newBottom}px`;
+      });
+
+      const endDrag = (e) => {
+        if (isDraggingHostCam) {
+          isDraggingHostCam = false;
+          try { hostCameraHeader.releasePointerCapture(e.pointerId); } catch(err) {}
+        }
+      };
+      hostCameraHeader.addEventListener('pointerup', endDrag);
+      hostCameraHeader.addEventListener('pointercancel', endDrag);
+    }
+
+    // イベントリスナーの登録
+    if (cardLiveCamera) cardLiveCamera.addEventListener('click', startLiveCamera);
+    if (btnCameraBack) btnCameraBack.addEventListener('click', stopLiveCamera);
+    if (btnCameraFlip) btnCameraFlip.addEventListener('click', flipLiveCamera);
+    if (btnCameraPauseToggle) btnCameraPauseToggle.addEventListener('click', toggleCameraPause);
+    if (btnCameraLayoutToggle) btnCameraLayoutToggle.addEventListener('click', toggleHostCameraLayout);
+
+    // カメラビュー内のスライド戻る/進む
+    if (btnCameraSlidePrev) {
+      btnCameraSlidePrev.addEventListener('click', () => {
+        currentSlide = Math.max(1, currentSlide - 1);
+        sendPeerMessage({ type: 'command', action: 'prev' });
+        if (navigator.vibrate) try { navigator.vibrate(25); } catch(e) {}
+      });
+    }
+
+    if (btnCameraSlideNext) {
+      btnCameraSlideNext.addEventListener('click', () => {
+        currentSlide++;
+        sendPeerMessage({ type: 'command', action: 'next' });
+        if (navigator.vibrate) try { navigator.vibrate(25); } catch(e) {}
+      });
+    }
 
 
 
@@ -2830,8 +3536,10 @@
     function isControllerViewActive() {
       const slideView = document.getElementById('viewSlideSwitch');
       const trackView = document.getElementById('viewTrackpad');
+      const camView = document.getElementById('viewLiveCamera');
       return (slideView && slideView.classList.contains('active')) || 
-             (trackView && trackView.classList.contains('active'));
+             (trackView && trackView.classList.contains('active')) ||
+             (camView && camView.classList.contains('active'));
     }
 
     function triggerConnectionAnimation() {
@@ -2867,7 +3575,8 @@
       const pills = [
         document.getElementById('menuConnPill'),
         document.getElementById('remoteConnPill'),
-        document.getElementById('trackpadConnPill')
+        document.getElementById('trackpadConnPill'),
+        document.getElementById('cameraConnPill')
       ];
       pills.forEach(p => {
         if (!p) return;
@@ -2892,7 +3601,8 @@
       const pills = [
         document.getElementById('menuConnPill'),
         document.getElementById('remoteConnPill'),
-        document.getElementById('trackpadConnPill')
+        document.getElementById('trackpadConnPill'),
+        document.getElementById('cameraConnPill')
       ];
 
       pills.forEach(pill => {
@@ -3412,10 +4122,33 @@
           setTimeout(initHostPeer, 500);
         }
       });
+
+      // スマホからのライブカメラ映像コールを受信・自動応答
+      peer.on('call', (call) => {
+        console.log('[WebRTC Host] 受信カメラコール:', call);
+        activeHostMediaCall = call;
+        call.answer(); // 空ストリームで応答（スマホからの映像を受信）
+        call.on('stream', (remoteStream) => {
+          console.log('[WebRTC Host] リモートカメラストリーム受信成功');
+          if (hostCameraVideo) {
+            hostCameraVideo.srcObject = remoteStream;
+            hostCameraVideo.play().catch(e => console.warn('[Camera] Video play error:', e));
+          }
+          openHostCameraWindow(currentHostCameraLayout);
+        });
+        call.on('close', () => {
+          closeHostCameraWindow();
+        });
+        call.on('error', (err) => {
+          console.warn('[WebRTC Host] Call error:', err);
+        });
+      });
     }
 
     // クライアント（スマホ側）の初期化
+    let targetHostPeerId = null;
     function initClientPeer(targetHostId) {
+      targetHostPeerId = targetHostId;
       peer = new Peer(PEER_CONFIG);
 
       peer.on('open', () => {
@@ -3560,6 +4293,19 @@
                  data.type === 'clipboard' || data.type === 'keyboard_text' || 
                  data.type === 'keyboard_key') {
         sendToNativeServer(data);
+      }
+      // 5. ライブカメラ制御
+      else if (data.type === 'camera_start') {
+        openHostCameraWindow(data.layout);
+      }
+      else if (data.type === 'camera_stop') {
+        closeHostCameraWindow();
+      }
+      else if (data.type === 'camera_layout') {
+        setHostCameraLayout(data.layout);
+      }
+      else if (data.type === 'camera_closed_by_host') {
+        stopLiveCamera();
       }
 
     }
