@@ -386,65 +386,107 @@ app.get('/api/info', async (req, res) => {
   }
 });
 
+// PCシステム診断データの生成（APIおよびWebSocket用共通ロジック）
+async function getSystemDiagnosticsData() {
+  const cpus = os.cpus();
+  const cpuModel = cpus && cpus.length > 0 ? cpus[0].model.trim() : 'Unknown';
+  const cpuCores = cpus ? cpus.length : 0;
+  const cpuSpeedMhz = cpus && cpus.length > 0 ? cpus[0].speed : 0;
+  const totalMem = os.totalmem();
+  const freeMem = os.freemem();
+  const usedMem = totalMem - freeMem;
+  const uptimeSec = Math.floor(os.uptime());
+
+  // 稼働時間文字列
+  const d = Math.floor(uptimeSec / 86400);
+  const h = Math.floor((uptimeSec % 86400) / 3600);
+  const m = Math.floor((uptimeSec % 3600) / 60);
+  const s = Math.floor(uptimeSec % 60);
+  const uptimeText = d > 0 ? `${d}d ${h}h ${m}m` : (h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`);
+
+  // タイムゾーン
+  let timeZoneText = 'UTC';
+  try {
+    timeZoneText = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch(e) {}
+
+  const detailedNics = getDetailedNetworkInterfaces();
+  const primaryNic = detailedNics.find(n => n.family === 'IPv4' && !n.internal) || {};
+
+  const [storage, publicIp] = await Promise.all([
+    getDiskStorageInfo(),
+    getPublicIp()
+  ]);
+
+  const totalMemGb = (totalMem / (1024 ** 3)).toFixed(1);
+  const usedMemGb = (usedMem / (1024 ** 3)).toFixed(1);
+  const memUsagePercent = Math.round((usedMem / totalMem) * 100);
+
+  const clockGhz = cpuSpeedMhz > 0 ? (cpuSpeedMhz / 1000).toFixed(2) : '--';
+  const clockText = cpuSpeedMhz > 0 ? `${clockGhz} GHz (${cpuSpeedMhz} MHz)` : '--';
+
+  const primaryIp = primaryNic.address || 'localhost';
+  const primarySubnet = primaryNic.netmask || '--';
+  const primaryMac = primaryNic.mac && primaryNic.mac !== '00:00:00:00:00:00' ? primaryNic.mac.toUpperCase() : '--';
+
+  return {
+    ok: true,
+    hostname: os.hostname(),
+    osPlatform: `${os.platform()} ${os.release()} (${os.arch()})`,
+    platform: os.platform(),
+    osType: os.type(),
+    release: os.release(),
+    arch: os.arch(),
+    username: os.userInfo ? os.userInfo().username : 'Current User',
+    timeZone: timeZoneText,
+    uptimeText,
+    uptime: uptimeSec,
+    cpuModel,
+    cpuCores: `${cpuCores} Logical Cores`,
+    cpuClock: clockText,
+    cpu: {
+      model: cpuModel,
+      cores: cpuCores,
+      clockSpeedMhz: cpuSpeedMhz
+    },
+    memory: {
+      totalBytes: totalMem,
+      freeBytes: freeMem,
+      usedBytes: usedMem,
+      totalGb: totalMemGb,
+      usedGb: usedMemGb,
+      usagePercent: memUsagePercent
+    },
+    memUsageText: `${usedMemGb} GB / ${totalMemGb} GB (${memUsagePercent}%)`,
+    memUsagePercent,
+    storage: storage || {
+      totalGb: '--',
+      freeGb: '--',
+      usedGb: '--',
+      usagePercent: 0
+    },
+    diskUsageText: storage ? `${storage.usedGb} GB / ${storage.totalGb} GB (${storage.usagePercent}%)` : '--',
+    diskUsagePercent: storage ? storage.usagePercent : 0,
+    network: {
+      primaryIp,
+      primarySubnet,
+      primaryMac,
+      primaryAdapter: primaryNic.name || '--',
+      publicIp: publicIp || '--',
+      interfaces: detailedNics
+    },
+    localIp: `${primaryIp}${primarySubnet !== '--' ? ' (' + primarySubnet + ')' : ''}`,
+    macAddress: primaryMac,
+    publicIp: publicIp || '--',
+    ips: getLocalIpAddresses()
+  };
+}
+
 // PCシステム情報取得API (Node.js os/fs標準モジュール、Windows/Mac共通)
 app.get('/api/system-info', async (req, res) => {
   try {
-    const cpus = os.cpus();
-    const cpuModel = cpus && cpus.length > 0 ? cpus[0].model : 'Unknown';
-    const cpuCores = cpus ? cpus.length : 0;
-    const cpuSpeedMhz = cpus && cpus.length > 0 ? cpus[0].speed : 0;
-    const totalMem = os.totalmem();
-    const freeMem = os.freemem();
-    const usedMem = totalMem - freeMem;
-    const uptimeSec = Math.floor(os.uptime());
-
-    const detailedNics = getDetailedNetworkInterfaces();
-    // プライマリ（非内部IPv4の最初）を取得
-    const primaryNic = detailedNics.find(n => n.family === 'IPv4' && !n.internal) || {};
-
-    const [storage, publicIp] = await Promise.all([
-      getDiskStorageInfo(),
-      getPublicIp()
-    ]);
-
-    res.json({
-      ok: true,
-      hostname: os.hostname(),
-      platform: os.platform(),
-      osType: os.type(),
-      release: os.release(),
-      arch: os.arch(),
-      username: os.userInfo ? os.userInfo().username : '',
-      cpu: {
-        model: cpuModel,
-        cores: cpuCores,
-        clockSpeedMhz: cpuSpeedMhz
-      },
-      memory: {
-        totalBytes: totalMem,
-        freeBytes: freeMem,
-        usedBytes: usedMem,
-        totalGb: (totalMem / (1024 ** 3)).toFixed(1),
-        usedGb: (usedMem / (1024 ** 3)).toFixed(1),
-        usagePercent: Math.round((usedMem / totalMem) * 100)
-      },
-      storage: storage || {
-        totalGb: '--',
-        freeGb: '--',
-        usedGb: '--',
-        usagePercent: 0
-      },
-      network: {
-        primaryIp: primaryNic.address || 'localhost',
-        primarySubnet: primaryNic.netmask || '--',
-        primaryMac: primaryNic.mac && primaryNic.mac !== '00:00:00:00:00:00' ? primaryNic.mac : '--',
-        primaryAdapter: primaryNic.name || '--',
-        publicIp: publicIp || '--',
-        interfaces: detailedNics
-      },
-      uptime: uptimeSec,
-      ips: getLocalIpAddresses()
-    });
+    const data = await getSystemDiagnosticsData();
+    res.json(data);
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
@@ -528,6 +570,30 @@ wss.on('connection', (ws, req) => {
       if (data.type === 'auth') {
         clientInfo.authenticated = true;
         ws.send(JSON.stringify({ type: 'auth_success' }));
+        return;
+      }
+
+      // システム診断情報のリクエスト（スマホ等からの要求に直接PCの診断データを即答）
+      if (data.type === 'request_system_info') {
+        getSystemDiagnosticsData().then(diag => {
+          if (ws.readyState === ws.OPEN) {
+            ws.send(JSON.stringify({
+              type: 'system_info_data',
+              payload: diag
+            }));
+          }
+        });
+        return;
+      }
+
+      // PCホストからのシステム診断データ返信を全スマホへリレー
+      if (data.type === 'system_info_data') {
+        const raw = JSON.stringify(data);
+        for (const [sock, inf] of clients.entries()) {
+          if (sock !== ws && sock.readyState === sock.OPEN && inf.type !== 'pc') {
+            sock.send(raw);
+          }
+        }
         return;
       }
 

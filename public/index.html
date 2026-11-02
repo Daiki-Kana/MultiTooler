@@ -2738,44 +2738,90 @@
       return diagnostics;
     }
 
-    // 診断データをカードUIに反映
+    let lastHostSystemData = null; // 接続先PCの最新診断データキャッシュ
+
+    // 診断データをカードUIに反映（サーバー生データ・合成オブジェクトの双方に完全対応）
     function renderSystemInfo(data) {
       if (!data) return;
-      if (sysHostName) sysHostName.textContent = data.hostname || '--';
-      if (sysOsPlatform) sysOsPlatform.textContent = data.osPlatform || '--';
-      if (sysUserName) sysUserName.textContent = data.username || '--';
-      if (sysTimeZone) sysTimeZone.textContent = data.timeZone || '--';
-      if (sysUptime) sysUptime.textContent = data.uptimeText || '--';
-      if (sysCpuModel) sysCpuModel.textContent = data.cpuModel || '--';
-      if (sysCpuCores) sysCpuCores.textContent = data.cpuCores || '--';
-      if (sysCpuClock) sysCpuClock.textContent = data.cpuClock || '--';
-      if (sysGpuRenderer) sysGpuRenderer.textContent = data.gpuRenderer || '--';
-      if (sysMemUsageText) sysMemUsageText.textContent = data.memUsageText || '--';
-      if (sysMemBar) {
-        const pct = Math.min(100, Math.max(0, data.memUsagePercent || 0));
-        sysMemBar.style.width = pct + '%';
+
+      const hostName = data.hostname || '--';
+      const osPlatform = data.osPlatform || (data.platform ? `${data.platform} ${data.release || ''} (${data.arch || ''})`.trim() : '--');
+      const userName = data.username || '--';
+      const timeZone = data.timeZone || '--';
+      const uptime = data.uptimeText || (typeof data.uptime === 'number' ? formatUptimeDuration(data.uptime) : '--');
+
+      const cpuModel = data.cpuModel || (data.cpu && data.cpu.model ? data.cpu.model.trim() : '--');
+      const cpuCores = data.cpuCores || (data.cpu && data.cpu.cores ? `${data.cpu.cores} Logical Cores` : '--');
+      let cpuClock = data.cpuClock || '--';
+      if (cpuClock === '--' && data.cpu && data.cpu.clockSpeedMhz) {
+        const ghz = (data.cpu.clockSpeedMhz / 1000).toFixed(2);
+        cpuClock = `${ghz} GHz (${data.cpu.clockSpeedMhz} MHz)`;
       }
-      if (sysDiskUsageText) sysDiskUsageText.textContent = data.diskUsageText || '--';
-      if (sysDiskBar) {
-        const pct = Math.min(100, Math.max(0, data.diskUsagePercent || 0));
-        sysDiskBar.style.width = pct + '%';
+
+      const gpuRenderer = data.gpuRenderer || getGpuRendererName();
+
+      let memText = data.memUsageText || '--';
+      let memPct = data.memUsagePercent != null ? data.memUsagePercent : 0;
+      if (memText === '--' && data.memory && data.memory.totalGb) {
+        memText = `${data.memory.usedGb} GB / ${data.memory.totalGb} GB (${data.memory.usagePercent}%)`;
+        memPct = data.memory.usagePercent;
       }
-      if (sysDisplayRes) sysDisplayRes.textContent = data.displayRes || '--';
-      if (sysRefreshRate) sysRefreshRate.textContent = data.refreshRate || '--';
-      if (sysPixelRatio) sysPixelRatio.textContent = data.pixelRatio || '--';
-      if (sysTouchSupport) sysTouchSupport.textContent = data.touchSupport || '--';
-      if (sysBatteryLevel) sysBatteryLevel.textContent = data.batteryText || '--';
-      if (sysLocalIp) sysLocalIp.textContent = data.localIp || '--';
-      if (sysMacAddress) sysMacAddress.textContent = data.macAddress || '--';
-      if (sysPublicIp) sysPublicIp.textContent = data.publicIp || '--';
-      if (sysDownlink) sysDownlink.textContent = data.downlink || '--';
-      if (sysConnRoute) {
-        sysConnRoute.textContent = currentRouteType === 'wifi' ? 'Direct Wi-Fi' : (currentRouteType === 'cloud' ? 'Cloud Relay' : 'Local');
+
+      let diskText = data.diskUsageText || '--';
+      let diskPct = data.diskUsagePercent != null ? data.diskUsagePercent : 0;
+      if (diskText === '--' && data.storage && data.storage.totalGb && data.storage.totalGb !== '--') {
+        diskText = `${data.storage.usedGb} GB / ${data.storage.totalGb} GB (${data.storage.usagePercent}%)`;
+        diskPct = data.storage.usagePercent;
       }
-      if (sysLatency) sysLatency.textContent = data.latency || '< 5 ms';
+
+      const displayRes = data.displayRes || `${window.screen.width} × ${window.screen.height}`;
+      const refreshRate = data.refreshRate || '--';
+      const pixelRatio = data.pixelRatio || `${window.devicePixelRatio ? window.devicePixelRatio.toFixed(1) : 1}x DPR`;
+      const touchSupport = data.touchSupport || '--';
+      const batteryLevel = data.batteryText || '--';
+
+      let localIp = data.localIp || '--';
+      let macAddr = data.macAddress || '--';
+      let pubIp = data.publicIp || '--';
+      if (data.network) {
+        if (data.network.primaryIp && localIp === '--') {
+          localIp = `${data.network.primaryIp}${data.network.primarySubnet && data.network.primarySubnet !== '--' ? ' (' + data.network.primarySubnet + ')' : ''}`;
+        }
+        if (data.network.primaryMac && macAddr === '--') macAddr = data.network.primaryMac.toUpperCase();
+        if (data.network.publicIp && pubIp === '--') pubIp = data.network.publicIp;
+      }
+
+      const downlink = data.downlink || '--';
+      const connRoute = (currentRouteType === 'wifi' ? 'Direct Wi-Fi' : (currentRouteType === 'cloud' ? 'Cloud Relay' : 'Local'));
+      const latency = data.latency || (navigator.connection && navigator.connection.rtt ? `${navigator.connection.rtt} ms` : '< 5 ms');
+
+      if (sysHostName) sysHostName.textContent = hostName;
+      if (sysOsPlatform) sysOsPlatform.textContent = osPlatform;
+      if (sysUserName) sysUserName.textContent = userName;
+      if (sysTimeZone) sysTimeZone.textContent = timeZone;
+      if (sysUptime) sysUptime.textContent = uptime;
+      if (sysCpuModel) sysCpuModel.textContent = cpuModel;
+      if (sysCpuCores) sysCpuCores.textContent = cpuCores;
+      if (sysCpuClock) sysCpuClock.textContent = cpuClock;
+      if (sysGpuRenderer) sysGpuRenderer.textContent = gpuRenderer;
+      if (sysMemUsageText) sysMemUsageText.textContent = memText;
+      if (sysMemBar) sysMemBar.style.width = Math.min(100, Math.max(0, memPct)) + '%';
+      if (sysDiskUsageText) sysDiskUsageText.textContent = diskText;
+      if (sysDiskBar) sysDiskBar.style.width = Math.min(100, Math.max(0, diskPct)) + '%';
+      if (sysDisplayRes) sysDisplayRes.textContent = displayRes;
+      if (sysRefreshRate) sysRefreshRate.textContent = refreshRate;
+      if (sysPixelRatio) sysPixelRatio.textContent = pixelRatio;
+      if (sysTouchSupport) sysTouchSupport.textContent = touchSupport;
+      if (sysBatteryLevel) sysBatteryLevel.textContent = batteryLevel;
+      if (sysLocalIp) sysLocalIp.textContent = localIp;
+      if (sysMacAddress) sysMacAddress.textContent = macAddr;
+      if (sysPublicIp) sysPublicIp.textContent = pubIp;
+      if (sysDownlink) sysDownlink.textContent = downlink;
+      if (sysConnRoute) sysConnRoute.textContent = connRoute;
+      if (sysLatency) sysLatency.textContent = latency;
     }
 
-    // 情報更新のトリガー
+    // 情報更新のトリガー（スマホ・PCの接続状態に応じた高信頼リフレッシュ）
     async function refreshSystemInfo() {
       // リフレッシュボタンに回転演出
       if (btnRefreshSysInfo) {
@@ -2789,18 +2835,55 @@
         }, 500);
       }
 
-      // スマホリモコンとして接続中の場合: ホストPCに最新スペック情報を要求
       const isClient = typeof isPeerHost !== 'undefined' && !isPeerHost;
       const isConnected = (typeof peerConn !== 'undefined' && peerConn && peerConn.open) || 
                           (socket && socket.readyState === WebSocket.OPEN);
 
-      if (isClient && isConnected) {
+      // スマホリモコン側の場合
+      if (isClient) {
+        // 1. すでにPCから受信したキャッシュデータがあれば即時描画
+        if (lastHostSystemData) {
+          renderSystemInfo(lastHostSystemData);
+        } else {
+          // 初期読込状態
+          if (sysHostName) sysHostName.textContent = 'Querying PC...';
+          if (sysCpuModel) sysCpuModel.textContent = 'Connecting...';
+          if (sysMemUsageText) sysMemUsageText.textContent = 'Loading...';
+          if (sysDiskUsageText) sysDiskUsageText.textContent = 'Loading...';
+        }
+
+        // 2. PCホスト & サーバーへデータ要求を送信 (WebSocket & WebRTC)
         sendPeerMessage({ type: 'request_system_info' });
+
+        // 3. HTTPフェッチフォールバック（直接サーバーアクセス可能な環境の場合）
+        try {
+          const cfg = typeof getTargetServerConfig === 'function' ? getTargetServerConfig() : {};
+          const baseUrl = cfg.serverUrl || (window.location.hostname !== 'localhost' && window.location.port ? `${window.location.protocol}//${window.location.host}` : '');
+          if (baseUrl) {
+            const resp = await fetch(`${baseUrl}/api/system-info`, { signal: AbortSignal.timeout(2000) });
+            if (resp.ok) {
+              const apiData = await resp.json();
+              if (apiData && apiData.ok) {
+                lastHostSystemData = apiData;
+                renderSystemInfo(apiData);
+                return;
+              }
+            }
+          }
+        } catch (e) {}
+
+        // 完全スタンドアロン（PC未接続かつ静的Pages単体）時のみローカル端末情報を表示
+        if (!isConnected && !lastHostSystemData) {
+          const localData = await collectSystemDiagnostics();
+          renderSystemInfo(localData);
+        }
+        return;
       }
 
-      // まず現在のローカル情報（またはキャッシュ）で即時描画
-      const localData = await collectSystemDiagnostics();
-      renderSystemInfo(localData);
+      // PCホスト側自身で開いている場合: ローカルハードウェア＋API情報を収集して即時描画
+      const hostData = await collectSystemDiagnostics();
+      lastHostSystemData = hostData;
+      renderSystemInfo(hostData);
     }
 
     if (cardSystemInfo) {
@@ -3990,6 +4073,10 @@
         // スマホ側でWebSocketが接続できた場合、WebRTC待機中であっても即時アンロックして操作可能にする
         if (!isLocalHost) {
           triggerPairingAnimation();
+          // PCのシステム診断データを事前要求
+          try {
+            socket.send(JSON.stringify({ type: 'request_system_info' }));
+          } catch(e) {}
         }
         requestWakeLock();
       });
@@ -4007,6 +4094,11 @@
           // PCホスト側でWebSocket経由のリモート操作（リレー）を受信
           if (isPeerHost && msg) {
             handleIncomingPeerData(msg);
+          }
+          // スマホ（クライアント）側でPCのシステム診断データを受信
+          if (msg && msg.type === 'system_info_data' && msg.payload) {
+            lastHostSystemData = msg.payload;
+            renderSystemInfo(msg.payload);
           }
         } catch (e) {}
       });
@@ -4702,6 +4794,12 @@
             slide: currentSlide, 
             isRunning: isTimerRunning
           });
+          // スマホ側へPCの診断データを即座に事前同期
+          collectSystemDiagnostics().then(sysData => {
+            if (conn.open) {
+              conn.send({ type: 'system_info_data', payload: sysData });
+            }
+          });
           triggerPairingAnimation();
         });
 
@@ -4774,6 +4872,7 @@
               else if (!data.isRunning && isTimerRunning) pauseTimer();
             }
           } else if (data && data.type === 'system_info_data') {
+            lastHostSystemData = data.payload;
             renderSystemInfo(data.payload);
           }
         });
