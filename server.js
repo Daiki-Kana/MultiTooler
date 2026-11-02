@@ -4,6 +4,7 @@
 // ==============================================================================
 
 const http = require('http');
+const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { spawn } = require('child_process');
@@ -238,6 +239,79 @@ function getLocalIpAddresses() {
   return addresses;
 }
 
+function getDetailedNetworkInterfaces() {
+  const interfaces = os.networkInterfaces();
+  const list = [];
+
+  for (const name of Object.keys(interfaces)) {
+    for (const net of interfaces[name]) {
+      list.push({
+        name,
+        family: net.family,
+        address: net.address,
+        netmask: net.netmask,
+        mac: net.mac,
+        internal: net.internal,
+        isWifi: /wi-?fi|wlan|wireless/i.test(name)
+      });
+    }
+  }
+
+  return list;
+}
+
+// ドライブ・ストレージ容量の取得 (fs.statfs)
+async function getDiskStorageInfo() {
+  return new Promise((resolve) => {
+    const targetDir = process.cwd();
+    fs.statfs(targetDir, (err, stats) => {
+      if (err || !stats) {
+        return resolve(null);
+      }
+      try {
+        const total = (Number(stats.bsize) * Number(stats.blocks)) / (1024 ** 3);
+        const free = (Number(stats.bsize) * Number(stats.bfree)) / (1024 ** 3);
+        const used = total - free;
+        const pct = total > 0 ? Math.round((used / total) * 100) : 0;
+        resolve({
+          totalGb: total.toFixed(1),
+          freeGb: free.toFixed(1),
+          usedGb: used.toFixed(1),
+          usagePercent: pct
+        });
+      } catch (e) {
+        resolve(null);
+      }
+    });
+  });
+}
+
+// パブリックIP（グローバルIP）の非同期取得（キャッシュ付き）
+let cachedPublicIp = null;
+let lastPublicIpFetch = 0;
+async function getPublicIp() {
+  const now = Date.now();
+  if (cachedPublicIp && (now - lastPublicIpFetch < 60000)) {
+    return cachedPublicIp;
+  }
+  try {
+    const res = await fetch('https://api.ipify.org?format=json', {
+      signal: AbortSignal.timeout(1500)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.ip) {
+        cachedPublicIp = data.ip;
+        lastPublicIpFetch = now;
+        return cachedPublicIp;
+      }
+    }
+  } catch (e) {
+    // 外部通信オフライン時はスキップ
+  }
+  return cachedPublicIp || '--';
+}
+
 function getPrimaryIp() {
   const ips = getLocalIpAddresses();
   return ips.length > 0 ? ips[0].address : 'localhost';
@@ -312,16 +386,26 @@ app.get('/api/info', async (req, res) => {
   }
 });
 
-// PCシステム情報取得API (Node.js os標準モジュール、Windows/Mac共通)
-app.get('/api/system-info', (req, res) => {
+// PCシステム情報取得API (Node.js os/fs標準モジュール、Windows/Mac共通)
+app.get('/api/system-info', async (req, res) => {
   try {
     const cpus = os.cpus();
     const cpuModel = cpus && cpus.length > 0 ? cpus[0].model : 'Unknown';
     const cpuCores = cpus ? cpus.length : 0;
+    const cpuSpeedMhz = cpus && cpus.length > 0 ? cpus[0].speed : 0;
     const totalMem = os.totalmem();
     const freeMem = os.freemem();
     const usedMem = totalMem - freeMem;
     const uptimeSec = Math.floor(os.uptime());
+
+    const detailedNics = getDetailedNetworkInterfaces();
+    // プライマリ（非内部IPv4の最初）を取得
+    const primaryNic = detailedNics.find(n => n.family === 'IPv4' && !n.internal) || {};
+
+    const [storage, publicIp] = await Promise.all([
+      getDiskStorageInfo(),
+      getPublicIp()
+    ]);
 
     res.json({
       ok: true,
@@ -333,13 +417,30 @@ app.get('/api/system-info', (req, res) => {
       username: os.userInfo ? os.userInfo().username : '',
       cpu: {
         model: cpuModel,
-        cores: cpuCores
+        cores: cpuCores,
+        clockSpeedMhz: cpuSpeedMhz
       },
       memory: {
         totalBytes: totalMem,
         freeBytes: freeMem,
         usedBytes: usedMem,
+        totalGb: (totalMem / (1024 ** 3)).toFixed(1),
+        usedGb: (usedMem / (1024 ** 3)).toFixed(1),
         usagePercent: Math.round((usedMem / totalMem) * 100)
+      },
+      storage: storage || {
+        totalGb: '--',
+        freeGb: '--',
+        usedGb: '--',
+        usagePercent: 0
+      },
+      network: {
+        primaryIp: primaryNic.address || 'localhost',
+        primarySubnet: primaryNic.netmask || '--',
+        primaryMac: primaryNic.mac && primaryNic.mac !== '00:00:00:00:00:00' ? primaryNic.mac : '--',
+        primaryAdapter: primaryNic.name || '--',
+        publicIp: publicIp || '--',
+        interfaces: detailedNics
       },
       uptime: uptimeSec,
       ips: getLocalIpAddresses()

@@ -2130,6 +2130,10 @@
           <span class="sys-value" id="sysUserName">--</span>
         </div>
         <div class="sys-row">
+          <span class="sys-label">Time Zone</span>
+          <span class="sys-value" id="sysTimeZone">--</span>
+        </div>
+        <div class="sys-row">
           <span class="sys-label">Uptime</span>
           <span class="sys-value" id="sysUptime">--</span>
         </div>
@@ -2161,12 +2165,16 @@
           <span class="sys-value" id="sysCpuCores">--</span>
         </div>
         <div class="sys-row">
+          <span class="sys-label">Clock Speed</span>
+          <span class="sys-value" id="sysCpuClock">--</span>
+        </div>
+        <div class="sys-row">
           <span class="sys-label">Graphics (GPU)</span>
           <span class="sys-value" id="sysGpuRenderer">--</span>
         </div>
       </div>
 
-      <!-- 3. Memory & RAM -->
+      <!-- 3. Memory & Storage -->
       <div class="sys-card">
         <div class="sys-card-header">
           <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2174,18 +2182,26 @@
             <path d="M6 5v3"></path><path d="M10 5v3"></path><path d="M14 5v3"></path><path d="M18 5v3"></path>
             <rect x="2" y="8" width="20" height="8" rx="2"></rect>
           </svg>
-          <span>System Memory</span>
+          <span>Memory & Storage</span>
         </div>
         <div class="sys-row">
-          <span class="sys-label">Memory Usage</span>
+          <span class="sys-label">System Memory</span>
           <span class="sys-value" id="sysMemUsageText">--</span>
         </div>
         <div class="sys-bar-track">
           <div class="sys-bar-fill" id="sysMemBar" style="width: 0%;"></div>
         </div>
+
+        <div class="sys-row" style="margin-top: 14px;">
+          <span class="sys-label">Disk Storage</span>
+          <span class="sys-value" id="sysDiskUsageText">--</span>
+        </div>
+        <div class="sys-bar-track">
+          <div class="sys-bar-fill" id="sysDiskBar" style="width: 0%;"></div>
+        </div>
       </div>
 
-      <!-- 4. Display & Battery -->
+      <!-- 4. Display & Hardware -->
       <div class="sys-card">
         <div class="sys-card-header">
           <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2193,15 +2209,23 @@
             <line x1="8" y1="21" x2="16" y2="21"></line>
             <line x1="12" y1="17" x2="12" y2="21"></line>
           </svg>
-          <span>Display & Power</span>
+          <span>Display & Hardware</span>
         </div>
         <div class="sys-row">
           <span class="sys-label">Resolution</span>
           <span class="sys-value" id="sysDisplayRes">--</span>
         </div>
         <div class="sys-row">
+          <span class="sys-label">Refresh Rate</span>
+          <span class="sys-value" id="sysRefreshRate">--</span>
+        </div>
+        <div class="sys-row">
           <span class="sys-label">Pixel Ratio</span>
           <span class="sys-value" id="sysPixelRatio">--</span>
+        </div>
+        <div class="sys-row">
+          <span class="sys-label">Multi-Touch</span>
+          <span class="sys-value" id="sysTouchSupport">--</span>
         </div>
         <div class="sys-row">
           <span class="sys-label">Battery Level</span>
@@ -2209,7 +2233,7 @@
         </div>
       </div>
 
-      <!-- 5. Network & Connection -->
+      <!-- 5. Network & Interfaces -->
       <div class="sys-card">
         <div class="sys-card-header">
           <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2218,11 +2242,23 @@
             <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
             <line x1="12" y1="20" x2="12.01" y2="20"></line>
           </svg>
-          <span>Network & Link</span>
+          <span>Network & Interfaces</span>
         </div>
         <div class="sys-row">
-          <span class="sys-label">Local IP Address</span>
+          <span class="sys-label">Primary IP (Subnet)</span>
           <span class="sys-value" id="sysLocalIp">--</span>
+        </div>
+        <div class="sys-row">
+          <span class="sys-label">MAC Address</span>
+          <span class="sys-value" id="sysMacAddress">--</span>
+        </div>
+        <div class="sys-row">
+          <span class="sys-label">Public IP</span>
+          <span class="sys-value" id="sysPublicIp">--</span>
+        </div>
+        <div class="sys-row">
+          <span class="sys-label">Downlink Speed</span>
+          <span class="sys-value" id="sysDownlink">--</span>
         </div>
         <div class="sys-row">
           <span class="sys-label">Connection Route</span>
@@ -2521,16 +2557,25 @@
     const sysHostName = document.getElementById('sysHostName');
     const sysOsPlatform = document.getElementById('sysOsPlatform');
     const sysUserName = document.getElementById('sysUserName');
+    const sysTimeZone = document.getElementById('sysTimeZone');
     const sysUptime = document.getElementById('sysUptime');
     const sysCpuModel = document.getElementById('sysCpuModel');
     const sysCpuCores = document.getElementById('sysCpuCores');
+    const sysCpuClock = document.getElementById('sysCpuClock');
     const sysGpuRenderer = document.getElementById('sysGpuRenderer');
     const sysMemUsageText = document.getElementById('sysMemUsageText');
     const sysMemBar = document.getElementById('sysMemBar');
+    const sysDiskUsageText = document.getElementById('sysDiskUsageText');
+    const sysDiskBar = document.getElementById('sysDiskBar');
     const sysDisplayRes = document.getElementById('sysDisplayRes');
+    const sysRefreshRate = document.getElementById('sysRefreshRate');
     const sysPixelRatio = document.getElementById('sysPixelRatio');
+    const sysTouchSupport = document.getElementById('sysTouchSupport');
     const sysBatteryLevel = document.getElementById('sysBatteryLevel');
     const sysLocalIp = document.getElementById('sysLocalIp');
+    const sysMacAddress = document.getElementById('sysMacAddress');
+    const sysPublicIp = document.getElementById('sysPublicIp');
+    const sysDownlink = document.getElementById('sysDownlink');
     const sysConnRoute = document.getElementById('sysConnRoute');
     const sysLatency = document.getElementById('sysLatency');
 
@@ -2560,6 +2605,36 @@
       return `${m}m ${s}s`;
     }
 
+    // ディスプレイのリフレッシュレート（Hz）を短時間測定
+    let cachedRefreshRate = null;
+    function measureRefreshRate() {
+      if (cachedRefreshRate) return Promise.resolve(cachedRefreshRate);
+      return new Promise((resolve) => {
+        let frames = 0;
+        let start = null;
+        function loop(ts) {
+          if (!start) start = ts;
+          frames++;
+          if (ts - start < 250) {
+            requestAnimationFrame(loop);
+          } else {
+            const rawHz = Math.round((frames * 1000) / (ts - start));
+            let matched = rawHz;
+            const standardHz = [60, 75, 90, 120, 144, 165, 240];
+            for (const std of standardHz) {
+              if (Math.abs(rawHz - std) <= 5) {
+                matched = std;
+                break;
+              }
+            }
+            cachedRefreshRate = matched;
+            resolve(matched);
+          }
+        }
+        requestAnimationFrame(loop);
+      });
+    }
+
     // クライアント/ホストの診断データを収集
     async function collectSystemDiagnostics() {
       // 1. ブラウザ標準APIから収集
@@ -2567,6 +2642,18 @@
       const res = `${window.screen.width} × ${window.screen.height}`;
       const dpr = `${window.devicePixelRatio ? window.devicePixelRatio.toFixed(1) : 1}x DPR`;
       const cores = navigator.hardwareConcurrency ? `${navigator.hardwareConcurrency} Cores` : '--';
+      const touchCount = navigator.maxTouchPoints || 0;
+      const touchText = touchCount > 0 ? `${touchCount} Touch Points` : 'No Touch';
+      const isHdr = window.matchMedia && window.matchMedia('(dynamic-range: high)').matches;
+      const measuredHz = await measureRefreshRate();
+      const refreshText = `${measuredHz} Hz${isHdr ? ' (HDR)' : ''}`;
+
+      let tzText = '--';
+      try {
+        const tzName = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const shortTz = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' }).formatToParts(new Date()).find(p => p.type === 'timeZoneName')?.value || '';
+        tzText = `${tzName}${shortTz ? ' (' + shortTz + ')' : ''}`;
+      } catch (e) {}
 
       let batteryText = '--';
       if (navigator.getBattery) {
@@ -2578,24 +2665,35 @@
       }
 
       let latencyText = '< 5 ms';
-      if (navigator.connection && navigator.connection.rtt) {
-        latencyText = `${navigator.connection.rtt} ms`;
+      let downlinkText = '--';
+      if (navigator.connection) {
+        if (navigator.connection.rtt) latencyText = `${navigator.connection.rtt} ms`;
+        if (navigator.connection.downlink) downlinkText = `${navigator.connection.downlink} Mbps`;
       }
 
       const diagnostics = {
         hostname: window.location.hostname === 'localhost' ? 'Local Host PC' : 'Client Device',
         osPlatform: navigator.platform || 'Unknown OS',
         username: 'Current Session',
+        timeZone: tzText,
         uptimeText: formatUptimeDuration(Math.floor(performance.now() / 1000)),
         cpuModel: navigator.hardwareConcurrency ? `${navigator.hardwareConcurrency}-Core Architecture` : 'Generic CPU',
         cpuCores: cores,
+        cpuClock: '--',
         gpuRenderer: gpu,
         memUsageText: navigator.deviceMemory ? `~${navigator.deviceMemory} GB Installed` : '--',
         memUsagePercent: 50,
+        diskUsageText: '--',
+        diskUsagePercent: 0,
         displayRes: res,
+        refreshRate: refreshText,
         pixelRatio: dpr,
+        touchSupport: touchText,
         batteryText: batteryText,
         localIp: window.location.hostname,
+        macAddress: '--',
+        publicIp: '--',
+        downlink: downlinkText,
         latency: latencyText
       };
 
@@ -2610,13 +2708,28 @@
           }
           if (apiData.username) diagnostics.username = apiData.username;
           if (apiData.uptime) diagnostics.uptimeText = formatUptimeDuration(apiData.uptime);
-          if (apiData.cpuModel) diagnostics.cpuModel = apiData.cpuModel;
-          if (apiData.cpuCount) diagnostics.cpuCores = `${apiData.cpuCount} Logical Cores`;
-          if (apiData.memUsagePercent != null) {
-            diagnostics.memUsagePercent = apiData.memUsagePercent;
-            diagnostics.memUsageText = `${apiData.usedMemGb} GB / ${apiData.totalMemGb} GB (${apiData.memUsagePercent}%)`;
+          if (apiData.cpu) {
+            if (apiData.cpu.model) diagnostics.cpuModel = apiData.cpu.model.trim();
+            if (apiData.cpu.cores) diagnostics.cpuCores = `${apiData.cpu.cores} Logical Cores`;
+            if (apiData.cpu.clockSpeedMhz) {
+              const ghz = (apiData.cpu.clockSpeedMhz / 1000).toFixed(2);
+              diagnostics.cpuClock = `${ghz} GHz (${apiData.cpu.clockSpeedMhz} MHz)`;
+            }
           }
-          if (apiData.localIp) diagnostics.localIp = apiData.localIp;
+          if (apiData.memory) {
+            diagnostics.memUsagePercent = apiData.memory.usagePercent;
+            diagnostics.memUsageText = `${apiData.memory.usedGb} GB / ${apiData.memory.totalGb} GB (${apiData.memory.usagePercent}%)`;
+          }
+          if (apiData.storage) {
+            diagnostics.diskUsagePercent = apiData.storage.usagePercent;
+            diagnostics.diskUsageText = `${apiData.storage.usedGb} GB / ${apiData.storage.totalGb} GB (${apiData.storage.usagePercent}%)`;
+          }
+          if (apiData.network) {
+            const net = apiData.network;
+            diagnostics.localIp = `${net.primaryIp}${net.primarySubnet && net.primarySubnet !== '--' ? ' (' + net.primarySubnet + ')' : ''}`;
+            if (net.primaryMac && net.primaryMac !== '--') diagnostics.macAddress = net.primaryMac.toUpperCase();
+            if (net.publicIp && net.publicIp !== '--') diagnostics.publicIp = net.publicIp;
+          }
         }
       } catch (e) {
         // バックエンドが静的ホスティング等で存在しない場合はブラウザ情報のみで継続
@@ -2631,19 +2744,31 @@
       if (sysHostName) sysHostName.textContent = data.hostname || '--';
       if (sysOsPlatform) sysOsPlatform.textContent = data.osPlatform || '--';
       if (sysUserName) sysUserName.textContent = data.username || '--';
+      if (sysTimeZone) sysTimeZone.textContent = data.timeZone || '--';
       if (sysUptime) sysUptime.textContent = data.uptimeText || '--';
       if (sysCpuModel) sysCpuModel.textContent = data.cpuModel || '--';
       if (sysCpuCores) sysCpuCores.textContent = data.cpuCores || '--';
+      if (sysCpuClock) sysCpuClock.textContent = data.cpuClock || '--';
       if (sysGpuRenderer) sysGpuRenderer.textContent = data.gpuRenderer || '--';
       if (sysMemUsageText) sysMemUsageText.textContent = data.memUsageText || '--';
       if (sysMemBar) {
         const pct = Math.min(100, Math.max(0, data.memUsagePercent || 0));
         sysMemBar.style.width = pct + '%';
       }
+      if (sysDiskUsageText) sysDiskUsageText.textContent = data.diskUsageText || '--';
+      if (sysDiskBar) {
+        const pct = Math.min(100, Math.max(0, data.diskUsagePercent || 0));
+        sysDiskBar.style.width = pct + '%';
+      }
       if (sysDisplayRes) sysDisplayRes.textContent = data.displayRes || '--';
+      if (sysRefreshRate) sysRefreshRate.textContent = data.refreshRate || '--';
       if (sysPixelRatio) sysPixelRatio.textContent = data.pixelRatio || '--';
+      if (sysTouchSupport) sysTouchSupport.textContent = data.touchSupport || '--';
       if (sysBatteryLevel) sysBatteryLevel.textContent = data.batteryText || '--';
       if (sysLocalIp) sysLocalIp.textContent = data.localIp || '--';
+      if (sysMacAddress) sysMacAddress.textContent = data.macAddress || '--';
+      if (sysPublicIp) sysPublicIp.textContent = data.publicIp || '--';
+      if (sysDownlink) sysDownlink.textContent = data.downlink || '--';
       if (sysConnRoute) {
         sysConnRoute.textContent = currentRouteType === 'wifi' ? 'Direct Wi-Fi' : (currentRouteType === 'cloud' ? 'Cloud Relay' : 'Local');
       }
