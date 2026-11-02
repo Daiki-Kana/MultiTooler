@@ -50,8 +50,25 @@ public class NativeKeys {
     public const uint MOUSEEVENTF_RIGHTUP   = 0x0010;
     public const uint MOUSEEVENTF_WHEEL     = 0x0800;
 
+    [DllImport("user32.dll")]
+    public static extern bool GetCursorPos(out POINT lpPoint);
+
+    [DllImport("user32.dll")]
+    public static extern bool SetCursorPos(int X, int Y);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct POINT {
+        public int X;
+        public int Y;
+    }
+
     public static void MouseMove(int dx, int dy) {
-        mouse_event(MOUSEEVENTF_MOVE, dx, dy, 0, UIntPtr.Zero);
+        POINT p;
+        if (GetCursorPos(out p)) {
+            SetCursorPos(p.X + dx, p.Y + dy);
+        } else {
+            mouse_event(MOUSEEVENTF_MOVE, dx, dy, 0, UIntPtr.Zero);
+        }
     }
 
     public static void MouseLeftClick() {

@@ -3303,10 +3303,19 @@
     }
 
     function sendWsPayload(payload) {
-      if (typeof sendPeerMessage === 'function') {
-        sendPeerMessage(payload);
+      if (typeof isPeerHost !== 'undefined' && isPeerHost) {
+        // PCホスト側自身でのローカル操作時は直接Nativeサーバーへ送信
+        sendToNativeServer(payload);
+      } else {
+        // スマホ側操作時: P2P(WebRTC)経由で送信を試み、未達時は直接NativeServerへフォールバック
+        let sentPeer = false;
+        if (typeof sendPeerMessage === 'function') {
+          sentPeer = sendPeerMessage(payload);
+        }
+        if (!sentPeer) {
+          sendToNativeServer(payload);
+        }
       }
-      sendToNativeServer(payload);
     }
 
     if (btnTrackpadBack) {
@@ -3555,11 +3564,17 @@
 
             const dist = Math.hypot(rawDx, rawDy);
             if (dist > 0) {
-              const sens = 0.7 + (currentSensitivity * 0.13);
-              const accel = dist < 2.5 ? 1.0 : Math.min(2.5, 1.0 + (dist - 2.5) * 0.1);
+              // 感度設定 (1〜10、初期値5: sens = 1.5 で軽快かつ自然な追従フィーリング)
+              const sens = 0.6 + (currentSensitivity * 0.18);
+              // 滑らかで制御しやすい微細加速度 (急激な跳ね上がりやOS標準マウス加速との重複を防止)
+              const accel = dist < 4 ? 1.0 : Math.min(1.4, 1.0 + (dist - 4) * 0.02);
 
-              accumX += rawDx * sens * accel;
-              accumY += rawDy * sens * accel;
+              // 1フレームあたりの最大飛び幅を安全にクランプ（急なタッチ飛びでのワープ防止）
+              const deltaX = Math.max(-100, Math.min(100, rawDx * sens * accel));
+              const deltaY = Math.max(-100, Math.min(100, rawDy * sens * accel));
+
+              accumX += deltaX;
+              accumY += deltaY;
             }
           }
         } else if (touches.length === 2) {
@@ -3644,6 +3659,60 @@
 
       trackpadSurface.addEventListener('touchend', handleTouchEnd, { passive: false });
       trackpadSurface.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+
+      // PCブラウザでのローカルテスト用 (マウスドラッグによるカーソル移動 & クリック)
+      let isMouseDownOnPad = false;
+      let padMouseStartX = 0;
+      let padMouseStartY = 0;
+      let padMousePrevX = 0;
+      let padMousePrevY = 0;
+      let padMouseStartTime = 0;
+
+      trackpadSurface.addEventListener('mousedown', (e) => {
+        if (e.button !== 0 && e.button !== 2) return;
+        isMouseDownOnPad = true;
+        padMouseStartX = e.clientX;
+        padMouseStartY = e.clientY;
+        padMousePrevX = e.clientX;
+        padMousePrevY = e.clientY;
+        padMouseStartTime = Date.now();
+        trackpadSurface.classList.add('touching');
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isMouseDownOnPad) return;
+        const rawDx = e.clientX - padMousePrevX;
+        const rawDy = e.clientY - padMousePrevY;
+        padMousePrevX = e.clientX;
+        padMousePrevY = e.clientY;
+
+        const dist = Math.hypot(rawDx, rawDy);
+        if (dist > 0) {
+          const sens = 0.6 + (currentSensitivity * 0.18);
+          const accel = dist < 4 ? 1.0 : Math.min(1.4, 1.0 + (dist - 4) * 0.02);
+          const deltaX = Math.max(-100, Math.min(100, rawDx * sens * accel));
+          const deltaY = Math.max(-100, Math.min(100, rawDy * sens * accel));
+          accumX += deltaX;
+          accumY += deltaY;
+        }
+      });
+
+      window.addEventListener('mouseup', (e) => {
+        if (!isMouseDownOnPad) return;
+        isMouseDownOnPad = false;
+        trackpadSurface.classList.remove('touching');
+        const dist = Math.hypot(e.clientX - padMouseStartX, e.clientY - padMouseStartY);
+        const duration = Date.now() - padMouseStartTime;
+        if (dist < 6 && duration < 300) {
+          if (e.button === 2) {
+            sendWsPayload({ type: 'mouse_click', button: 'right' });
+          } else {
+            sendWsPayload({ type: 'mouse_click', button: 'left' });
+          }
+        }
+        accumX = 0;
+        accumY = 0;
+      });
     }
 
     // --------------------------------------------------------------------------
@@ -4773,6 +4842,8 @@
       if (isPeerHost) {
         sendToNativeServer(msg);
       }
+
+      return sent;
     }
 
     function updateHostDisplay() {
@@ -5011,9 +5082,8 @@
       if (nativeWs && nativeWs.readyState === WebSocket.OPEN) {
         nativeWs.send(msg);
         sent = true;
-      }
-      // 2. 汎用メインWebSocket接続
-      if (socket && socket.readyState === WebSocket.OPEN && socket !== nativeWs) {
+      } else if (socket && socket.readyState === WebSocket.OPEN) {
+        // 2. 汎用メインWebSocket接続 (nativeWs未接続時のフォールバック)
         socket.send(msg);
         sent = true;
       }

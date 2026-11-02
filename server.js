@@ -113,6 +113,116 @@ function sendNativeMouse(cmd) {
   }
 }
 
+// マウス移動・スクロールの合算（Coalescing）バッファ
+// 高頻度パケットによるPowerShell標準入力パイプの詰まり・遅延・暴走を防止
+let pendingMouseDx = 0;
+let pendingMouseDy = 0;
+let pendingScrollDelta = 0;
+let mouseFlushTimer = null;
+
+function flushNativeMouse() {
+  mouseFlushTimer = null;
+  const dx = pendingMouseDx;
+  const dy = pendingMouseDy;
+  const scroll = pendingScrollDelta;
+  pendingMouseDx = 0;
+  pendingMouseDy = 0;
+  pendingScrollDelta = 0;
+
+  if (dx !== 0 || dy !== 0) {
+    sendNativeMouse(`MOUSE_MOVE ${dx} ${dy}`);
+  }
+  if (scroll !== 0) {
+    sendNativeMouse(`MOUSE_SCROLL ${scroll}`);
+  }
+}
+
+function queueNativeMouseMove(dx, dy) {
+  pendingMouseDx += dx;
+  pendingMouseDy += dy;
+  if (!mouseFlushTimer) {
+    // 16ms（約60Hz）で合算フラッシュ
+    mouseFlushTimer = setTimeout(flushNativeMouse, 16);
+  }
+}
+
+function queueNativeMouseScroll(delta) {
+  pendingScrollDelta += delta;
+  if (!mouseFlushTimer) {
+    mouseFlushTimer = setTimeout(flushNativeMouse, 16);
+  }
+}
+
+// OSネイティブ操作（マウス・キーボード・コマンド）の統合ハンドラ
+function handleNativeAction(data) {
+  if (!data) return false;
+
+  if (data.type === 'mouse_move') {
+    const dx = Math.round(data.dx);
+    const dy = Math.round(data.dy);
+    if (dx !== 0 || dy !== 0) {
+      queueNativeMouseMove(dx, dy);
+    }
+    return true;
+  }
+
+  // クリック・ドラッグ・スクロール等のイベント時は、直前のマウス移動合算を確実に先行反映
+  if (mouseFlushTimer) {
+    flushNativeMouse();
+  }
+
+  if (data.type === 'mouse_click') {
+    if (data.button === 'right') return sendNativeMouse('MOUSE_CLICK_RIGHT');
+    return sendNativeMouse('MOUSE_CLICK_LEFT');
+  }
+
+  if (data.type === 'mouse_drag') {
+    if (data.state === 'start') return sendNativeMouse('MOUSE_DRAG_START');
+    return sendNativeMouse('MOUSE_DRAG_END');
+  }
+
+  if (data.type === 'mouse_scroll') {
+    queueNativeMouseScroll(Math.round(data.delta));
+    return true;
+  }
+
+  if (data.type === 'clipboard') {
+    if (data.action === 'copy') return sendNativeMouse('CMD_COPY');
+    if (data.action === 'paste') return sendNativeMouse('CMD_PASTE');
+    return false;
+  }
+
+  if (data.type === 'keyboard_text') {
+    const text = String(data.text || '');
+    if (text) {
+      const b64 = Buffer.from(text, 'utf-8').toString('base64');
+      console.log(`[Keyboard] テキスト入力送信: "${text}"`);
+      return sendNativeMouse(`KEY_TEXT ${b64}`);
+    }
+    return false;
+  }
+
+  if (data.type === 'keyboard_key') {
+    const key = String(data.key || '').toUpperCase();
+    if (key) {
+      console.log(`[Keyboard] 特殊キー送信: ${key}`);
+      return sendNativeMouse(`KEY_SPECIAL ${key}`);
+    }
+    return false;
+  }
+
+  if (data.type === 'command') {
+    const action = data.action;
+    if (action === 'copy') return sendNativeMouse('CMD_COPY');
+    if (action === 'paste') return sendNativeMouse('CMD_PASTE');
+    if (action === 'drag_start') return sendNativeMouse('MOUSE_DRAG_START');
+    if (action === 'drag_end') return sendNativeMouse('MOUSE_DRAG_END');
+    return sendNativeKey(action);
+  }
+
+  return false;
+}
+
 // 初期化実行
 initNativeKeyEngine();
 
@@ -597,69 +707,6 @@ wss.on('connection', (ws, req) => {
         return;
       }
 
-function handleNativeAction(data) {
-  if (!data) return false;
-
-  if (data.type === 'mouse_move') {
-    const dx = Math.round(data.dx);
-    const dy = Math.round(data.dy);
-    if (dx !== 0 || dy !== 0) {
-      return sendNativeMouse(`MOUSE_MOVE ${dx} ${dy}`);
-    }
-    return true;
-  }
-
-  if (data.type === 'mouse_click') {
-    if (data.button === 'right') return sendNativeMouse('MOUSE_CLICK_RIGHT');
-    return sendNativeMouse('MOUSE_CLICK_LEFT');
-  }
-
-  if (data.type === 'mouse_drag') {
-    if (data.state === 'start') return sendNativeMouse('MOUSE_DRAG_START');
-    return sendNativeMouse('MOUSE_DRAG_END');
-  }
-
-  if (data.type === 'mouse_scroll') {
-    return sendNativeMouse(`MOUSE_SCROLL ${Math.round(data.delta)}`);
-  }
-
-  if (data.type === 'clipboard') {
-    if (data.action === 'copy') return sendNativeMouse('CMD_COPY');
-    if (data.action === 'paste') return sendNativeMouse('CMD_PASTE');
-    return false;
-  }
-
-  if (data.type === 'keyboard_text') {
-    const text = String(data.text || '');
-    if (text) {
-      const b64 = Buffer.from(text, 'utf-8').toString('base64');
-      console.log(`[Keyboard] テキスト入力送信: "${text}"`);
-      return sendNativeMouse(`KEY_TEXT ${b64}`);
-    }
-    return false;
-  }
-
-  if (data.type === 'keyboard_key') {
-    const key = String(data.key || '').toUpperCase();
-    if (key) {
-      console.log(`[Keyboard] 特殊キー送信: ${key}`);
-      return sendNativeMouse(`KEY_SPECIAL ${key}`);
-    }
-    return false;
-  }
-
-  if (data.type === 'command') {
-    const action = data.action;
-    if (action === 'copy') return sendNativeMouse('CMD_COPY');
-    if (action === 'paste') return sendNativeMouse('CMD_PASTE');
-    if (action === 'drag_start') return sendNativeMouse('MOUSE_DRAG_START');
-    if (action === 'drag_end') return sendNativeMouse('MOUSE_DRAG_END');
-    return sendNativeKey(action);
-  }
-
-  return false;
-}
-
       if (data.type === 'mouse_move' || data.type === 'mouse_click' || 
           data.type === 'mouse_drag' || data.type === 'mouse_scroll' || 
           data.type === 'clipboard' || data.type === 'keyboard_text' || 
@@ -668,11 +715,14 @@ function handleNativeAction(data) {
       }
 
       // スマホから届いた操作メッセージを PC 側クライアントへもリレー送信（WebRTCフォールバック）
+      // ※高頻度の mouse_move / mouse_scroll はサーバー側でOS直結処理するため、PCブラウザへの再送（二重処理・帯域浪費）から除外
       if (clientInfo.type !== 'pc') {
-        const rawMsg = JSON.stringify(data);
-        for (const [sock, inf] of clients.entries()) {
-          if (sock !== ws && sock.readyState === sock.OPEN && inf.type === 'pc') {
-            sock.send(rawMsg);
+        if (data.type !== 'mouse_move' && data.type !== 'mouse_scroll') {
+          const rawMsg = JSON.stringify(data);
+          for (const [sock, inf] of clients.entries()) {
+            if (sock !== ws && sock.readyState === sock.OPEN && inf.type === 'pc') {
+              sock.send(rawMsg);
+            }
           }
         }
       }
