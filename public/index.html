@@ -163,14 +163,25 @@
     }
 
     .connection-pill.disconnected {
-      opacity: 0.45;
+      opacity: 0.55;
       color: var(--color-ink-subtle);
-      animation: pillPulse 2.2s ease-in-out infinite;
     }
 
-    @keyframes pillPulse {
-      0%, 100% { opacity: 0.35; transform: scale(1); }
-      50% { opacity: 0.7; transform: scale(1.02); }
+    .connection-pill.disconnected .route-icon {
+      position: relative;
+    }
+
+    .connection-pill.disconnected .route-icon::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 17px;
+      height: 2px;
+      background: currentColor;
+      transform: translate(-50%, -50%) rotate(-45deg);
+      border-radius: 2px;
+      box-shadow: 0 0 0 1px var(--color-surface-1);
     }
 
     .connection-pill[data-route="wifi"] .route-cloud { display: none; }
@@ -425,6 +436,25 @@
     .menu-card:active {
       transform: scale(0.94);
       background: #e5e5ea;
+    }
+
+    /* 最重要アクションタイル (反転ブラック・白アイコン・完全ボーダーレス) */
+    .menu-card.primary {
+      background: #111113;
+      color: #ffffff;
+    }
+
+    .menu-card.primary svg {
+      stroke: #ffffff;
+    }
+
+    .menu-card.primary:hover {
+      background: #27272a;
+    }
+
+    .menu-card.primary:active {
+      background: #3f3f46;
+      transform: scale(0.94);
     }
 
     /* --------------------------------------------------------------------------
@@ -1327,8 +1357,8 @@
     }
 
     .live-dot {
-      width: 6px;
-      height: 6px;
+      width: 8px;
+      height: 8px;
       background: #ff3b30;
       border-radius: 50%;
       animation: livePulse 1.8s infinite ease-in-out;
@@ -1392,9 +1422,8 @@
   <div id="hostCameraOverlay" class="host-camera-overlay hidden">
     <div class="host-camera-window" id="hostCameraWindow">
       <header class="host-camera-bar" id="hostCameraHeader">
-        <div class="host-camera-pill">
+        <div class="host-camera-pill" aria-label="Camera Active">
           <span class="live-dot"></span>
-          <span>LIVE</span>
         </div>
         <div class="host-camera-actions">
           <button type="button" id="btnHostCameraPip" class="btn-icon" aria-label="Float on Top" title="Float on Top">
@@ -1570,17 +1599,17 @@
         <span>Trackpad</span>
       </button>
 
-      <!-- Live Presentation Camera Card -->
+      <!-- Live Presentation Camera Card (Video Camera Icon) -->
       <button type="button" class="menu-card" id="cardLiveCamera" aria-label="Camera">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-          <circle cx="12" cy="13" r="4"></circle>
+          <polygon points="23 7 16 12 23 17 23 7"></polygon>
+          <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
         </svg>
         <span>Camera</span>
       </button>
 
-      <!-- Connect QR Card -->
-      <button type="button" class="menu-card" id="cardConnectQr" aria-label="Connect QR">
+      <!-- Connect QR Card (Primary Featured Tile) -->
+      <button type="button" class="menu-card primary" id="cardConnectQr" aria-label="Connect QR">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="3" width="6" height="6" rx="1"></rect>
           <rect x="15" y="3" width="6" height="6" rx="1"></rect>
