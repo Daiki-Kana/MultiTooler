@@ -312,6 +312,43 @@ app.get('/api/info', async (req, res) => {
   }
 });
 
+// PCシステム情報取得API (Node.js os標準モジュール、Windows/Mac共通)
+app.get('/api/system-info', (req, res) => {
+  try {
+    const cpus = os.cpus();
+    const cpuModel = cpus && cpus.length > 0 ? cpus[0].model : 'Unknown';
+    const cpuCores = cpus ? cpus.length : 0;
+    const totalMem = os.totalmem();
+    const freeMem = os.freemem();
+    const usedMem = totalMem - freeMem;
+    const uptimeSec = Math.floor(os.uptime());
+
+    res.json({
+      ok: true,
+      hostname: os.hostname(),
+      platform: os.platform(),
+      osType: os.type(),
+      release: os.release(),
+      arch: os.arch(),
+      username: os.userInfo ? os.userInfo().username : '',
+      cpu: {
+        model: cpuModel,
+        cores: cpuCores
+      },
+      memory: {
+        totalBytes: totalMem,
+        freeBytes: freeMem,
+        usedBytes: usedMem,
+        usagePercent: Math.round((usedMem / totalMem) * 100)
+      },
+      uptime: uptimeSec,
+      ips: getLocalIpAddresses()
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // PINコード再生成API（無効化・互換ダミー）
 app.post('/api/regenerate-pin', (req, res) => {
   res.json({ success: true });
