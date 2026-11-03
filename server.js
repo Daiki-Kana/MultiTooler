@@ -102,6 +102,7 @@ function sendNativeKey(action) {
 // 低レイテンシ マウス・コマンド送信関数
 function sendNativeMouse(cmd) {
   if (!psProcess || !psProcess.stdin.writable) {
+    console.warn('[NativeMouse] PowerShellプロセス準備中または再起動中...');
     initNativeKeyEngine();
     return false;
   }
@@ -109,6 +110,7 @@ function sendNativeMouse(cmd) {
     psProcess.stdin.write(`${cmd}\n`);
     return true;
   } catch (err) {
+    console.error('[NativeMouse] 送信エラー:', err.message);
     return false;
   }
 }
@@ -119,6 +121,8 @@ let pendingMouseDx = 0;
 let pendingMouseDy = 0;
 let pendingScrollDelta = 0;
 let mouseFlushTimer = null;
+let mousePacketCounter = 0;
+let lastMouseLogTime = 0;
 
 function flushNativeMouse() {
   mouseFlushTimer = null;
@@ -131,9 +135,16 @@ function flushNativeMouse() {
 
   if (dx !== 0 || dy !== 0) {
     sendNativeMouse(`MOUSE_MOVE ${dx} ${dy}`);
+    mousePacketCounter++;
+    const now = Date.now();
+    if (now - lastMouseLogTime > 1000) {
+      console.log(`[Trackpad] マウス移動パケット送信中: dx=${dx}, dy=${dy} (累計: ${mousePacketCounter})`);
+      lastMouseLogTime = now;
+    }
   }
   if (scroll !== 0) {
     sendNativeMouse(`MOUSE_SCROLL ${scroll}`);
+    console.log(`[Trackpad] マウススクロール送信: delta=${scroll}`);
   }
 }
 
@@ -157,9 +168,21 @@ function queueNativeMouseScroll(delta) {
 function handleNativeAction(data) {
   if (!data) return false;
 
+  // 複数イベントの順序保証バッチ処理（HTTPフォールバック合算時など）
+  if (data.type === 'batch' && Array.isArray(data.events)) {
+    let ok = true;
+    for (const ev of data.events) {
+      if (!handleNativeAction(ev)) ok = false;
+    }
+    return ok;
+  }
+
   if (data.type === 'mouse_move') {
-    const dx = Math.round(data.dx);
-    const dy = Math.round(data.dy);
+    const rawDx = Number(data.dx);
+    const rawDy = Number(data.dy);
+    if (!Number.isFinite(rawDx) || !Number.isFinite(rawDy)) return false;
+    const dx = Math.round(rawDx);
+    const dy = Math.round(rawDy);
     if (dx !== 0 || dy !== 0) {
       queueNativeMouseMove(dx, dy);
     }
@@ -172,17 +195,25 @@ function handleNativeAction(data) {
   }
 
   if (data.type === 'mouse_click') {
-    if (data.button === 'right') return sendNativeMouse('MOUSE_CLICK_RIGHT');
+    const btn = data.button === 'right' ? 'right' : 'left';
+    console.log(`[Trackpad] マウスクリック実行: ${btn}`);
+    if (btn === 'right') return sendNativeMouse('MOUSE_CLICK_RIGHT');
     return sendNativeMouse('MOUSE_CLICK_LEFT');
   }
 
   if (data.type === 'mouse_drag') {
+    console.log(`[Trackpad] マウスドラッグ: ${data.state}`);
     if (data.state === 'start') return sendNativeMouse('MOUSE_DRAG_START');
     return sendNativeMouse('MOUSE_DRAG_END');
   }
 
   if (data.type === 'mouse_scroll') {
-    queueNativeMouseScroll(Math.round(data.delta));
+    const rawDelta = Number(data.delta);
+    if (!Number.isFinite(rawDelta)) return false;
+    const delta = Math.round(rawDelta);
+    if (delta !== 0) {
+      queueNativeMouseScroll(delta);
+    }
     return true;
   }
 
@@ -267,15 +298,25 @@ function startCloudflareTunnel() {
         const newUrl = match[0];
         if (newUrl !== currentTunnelUrl) {
           currentTunnelUrl = newUrl;
+          const vercelUrl = `https://tool-box-pied.vercel.app/?server=${encodeURIComponent(currentTunnelUrl)}`;
           console.log('================================================================');
           console.log(`  [Cloudflare] トンネルURLが正常に発行されました:`);
           console.log(`  👉 ${currentTunnelUrl}/`);
+          console.log(`  [Vercel] 固定WebアプリURL (PC・スマホ共通):`);
+          console.log(`  👉 ${vercelUrl}`);
           console.log('  【スマホのカメラで下記QRコードを読み取れば即座に操作可能】');
           console.log('================================================================');
-          QRCode.toString(`${currentTunnelUrl}/`, { type: 'terminal', small: true }, (err, qr) => {
+          QRCode.toString(vercelUrl, { type: 'terminal', small: true }, (err, qr) => {
             if (!err && qr) console.log(qr);
           });
           broadcastTunnelUpdate();
+
+          // PC側でVercel連携リンクを自動で開く
+          if (process.platform === 'win32') {
+            try {
+              spawn('cmd', ['/c', 'start', vercelUrl], { detached: true, stdio: 'ignore' }).unref();
+            } catch (e) {}
+          }
         }
       }
     });
@@ -327,7 +368,7 @@ function restartCloudflareTunnel() {
 startCloudflareTunnel();
 
 // ------------------------------------------------------------------------------
-// 3. ネットワーク情報
+// 3. ネットワーク情報 (テザリング・Wi-Fi自動検出優先)
 // ------------------------------------------------------------------------------
 function getLocalIpAddresses() {
   const interfaces = os.networkInterfaces();
@@ -336,16 +377,44 @@ function getLocalIpAddresses() {
   for (const name of Object.keys(interfaces)) {
     for (const net of interfaces[name]) {
       if (net.family === 'IPv4' && !net.internal) {
+        let score = 50;
+        const lowerName = name.toLowerCase();
+
+        // 仮想アダプタを除外・低優先化（WSL, VirtualBox, VMware, Docker, VPN等）
+        if (/vethernet|virtualbox|vmware|wsl|docker|tailscale|zerotier|loopback|npcap|tap/i.test(lowerName)) {
+          score -= 40;
+        }
+
+        // テザリング専用IP帯（iPhone: 172.20.10.x, Android: 192.168.43.x）は最高優先度
+        const isTetheringIp = /^172\.20\.10\./.test(net.address) || /^192\.168\.43\./.test(net.address);
+        if (isTetheringIp) {
+          score += 60;
+        }
+
+        // Wi-Fiまたはテザリングアダプタ名
+        const isWifiOrTether = /wi-?fi|wlan|wireless|apple|tether/i.test(lowerName);
+        if (isWifiOrTether) {
+          score += 30;
+        }
+
+        // 一般的なローカルプライベートIP
+        if (/^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(net.address)) {
+          score += 10;
+        }
+
         addresses.push({
           name,
           address: net.address,
-          isWifi: /wi-?fi|wlan|wireless/i.test(name)
+          isWifi: isWifiOrTether,
+          isTethering: isTetheringIp,
+          score
         });
       }
     }
   }
 
-  addresses.sort((a, b) => (b.isWifi ? 1 : 0) - (a.isWifi ? 1 : 0));
+  // スコア降順ソート（テザリングIP・Wi-Fiが必ず先頭に選定される）
+  addresses.sort((a, b) => b.score - a.score);
   return addresses;
 }
 
@@ -434,15 +503,27 @@ app.use((req, res, next) => {
   res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, X-Requested-With');
   res.header('Access-Control-Allow-Private-Network', 'true');
+  res.header('Access-Control-Max-Age', '86400');
   if (req.method === 'OPTIONS') return res.sendStatus(200);
   next();
 });
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
 
-// スマホ・PC共通の単一アプリを提供 (/remote へのアクセスも同一アプリへ)
-app.get('/remote', (req, res) => {
+// スマホ・PCへの静的ファイル配信（開発・リモコン用のためキャッシュを完全無効化）
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+}));
+
+// スマホ・PC共通の単一アプリを提供 (/remote へのアクセスも同一アプリへ、キャッシュ無効化)
+app.get(['/', '/remote'], (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
@@ -626,6 +707,7 @@ app.post('/api/refresh-tunnel', async (req, res) => {
 // 5. WebSocket通信によるリモコン操作ハンドリング
 // ------------------------------------------------------------------------------
 const clients = new Map();
+const isPcClientType = (type) => type === 'pc' || type === 'pc_host';
 
 function broadcastStatus() {
   let mobileCount = 0;
@@ -633,7 +715,7 @@ function broadcastStatus() {
 
   for (const info of clients.values()) {
     if (info.type === 'mobile') mobileCount++;
-    if (info.type === 'pc') pcCount++;
+    if (isPcClientType(info.type)) pcCount++;
   }
 
   const payload = JSON.stringify({
@@ -700,27 +782,32 @@ wss.on('connection', (ws, req) => {
       if (data.type === 'system_info_data') {
         const raw = JSON.stringify(data);
         for (const [sock, inf] of clients.entries()) {
-          if (sock !== ws && sock.readyState === sock.OPEN && inf.type !== 'pc') {
+          if (sock !== ws && sock.readyState === sock.OPEN && !isPcClientType(inf.type)) {
             sock.send(raw);
           }
         }
         return;
       }
 
+      let handledNatively = false;
       if (data.type === 'mouse_move' || data.type === 'mouse_click' || 
           data.type === 'mouse_drag' || data.type === 'mouse_scroll' || 
           data.type === 'clipboard' || data.type === 'keyboard_text' || 
           data.type === 'keyboard_key') {
         handleNativeAction(data);
+        handledNatively = true;
       }
 
-      // スマホから届いた操作メッセージを PC 側クライアントへもリレー送信（WebRTCフォールバック）
-      // ※高頻度の mouse_move / mouse_scroll はサーバー側でOS直結処理するため、PCブラウザへの再送（二重処理・帯域浪費）から除外
-      if (clientInfo.type !== 'pc') {
+      // スマホから届いた操作メッセージを PC 側クライアントへもリレー送信（カメラ制御・UI状態同期用）
+      // ※すでにサーバー側でOS操作を実行したイベントには _handledByServer フラグを付与し、PCブラウザからの二重再送を防止
+      if (!isPcClientType(clientInfo.type)) {
         if (data.type !== 'mouse_move' && data.type !== 'mouse_scroll') {
-          const rawMsg = JSON.stringify(data);
+          const relayObj = (handledNatively || data.type === 'command')
+            ? Object.assign({}, data, { _handledByServer: true })
+            : data;
+          const rawMsg = JSON.stringify(relayObj);
           for (const [sock, inf] of clients.entries()) {
-            if (sock !== ws && sock.readyState === sock.OPEN && inf.type === 'pc') {
+            if (sock !== ws && sock.readyState === sock.OPEN && isPcClientType(inf.type)) {
               sock.send(rawMsg);
             }
           }
@@ -756,7 +843,7 @@ wss.on('connection', (ws, req) => {
         });
 
         for (const [socket, info] of clients.entries()) {
-          if (socket.readyState === socket.OPEN && info.type === 'pc') {
+          if (socket.readyState === socket.OPEN && isPcClientType(info.type)) {
             socket.send(logPayload);
           }
         }
@@ -800,18 +887,36 @@ process.on('exit', () => {
 // ------------------------------------------------------------------------------
 // 6. サーバーリッスン開始
 // ------------------------------------------------------------------------------
+server.on('error', (err) => {
+  if (err && err.code === 'EADDRINUSE') {
+    console.error(`[Error] ポート ${PORT} は既に別の WebSlideSwitch プロセスで使用中です。既存の node.exe を終了してから再起動してください。`);
+    if (psProcess) { try { psProcess.kill(); } catch (e) {} }
+    if (cloudflaredProcess) { try { cloudflaredProcess.kill(); } catch (e) {} }
+    process.exit(1);
+  }
+  console.error('[Server Error]:', err);
+});
+
 server.listen(PORT, '0.0.0.0', () => {
   const primaryIp = getPrimaryIp();
   const localUrl = `http://${primaryIp}:${PORT}/`;
   console.log('================================================================');
   console.log(`  WebSlideSwitch サーバーが起動しました`);
   console.log(`  ローカルURL:    http://localhost:${PORT}`);
-  console.log(`  Wi-Fi接続URL:   ${localUrl}`);
+  console.log(`  接続用URL:      ${localUrl}`);
   console.log('================================================================');
   QRCode.toString(localUrl, { type: 'terminal', small: true }, (err, qr) => {
     if (!err && qr) {
-      console.log('  【同じWi-Fiに接続しているスマホ用QRコード】:');
+      console.log('  【テザリング / 同一Wi-Fi 接続用QRコード】:');
       console.log(qr);
+      console.log('  ※外部インターネット経由のCloudflareトンネルも自動待機中です...');
     }
   });
+
+  // Windows環境でPC側ダッシュボードブラウザを自動起動
+  if (process.platform === 'win32') {
+    try {
+      spawn('cmd', ['/c', 'start', `http://localhost:${PORT}`], { detached: true, stdio: 'ignore' }).unref();
+    } catch (e) {}
+  }
 });

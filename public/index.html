@@ -60,6 +60,136 @@
     }
 
     /* --------------------------------------------------------------------------
+       Host View (PC Presentation & Big QR Receiver, Borderless)
+       -------------------------------------------------------------------------- */
+    #viewHost {
+      display: none;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      flex-direction: column;
+      background: var(--color-canvas);
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+
+    #viewHost.active {
+      display: flex;
+    }
+
+    .host-container {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      box-sizing: border-box;
+      text-align: center;
+    }
+
+    .host-card {
+      background: var(--color-surface-1);
+      border-radius: 28px;
+      padding: 36px 40px;
+      max-width: 520px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      box-sizing: border-box;
+      transition: all 0.25s ease;
+    }
+
+    .host-qr-img {
+      width: 260px;
+      height: 260px;
+      background: #ffffff;
+      padding: 12px;
+      border-radius: 20px;
+      display: block;
+      object-fit: contain;
+    }
+
+    .host-room-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--color-surface-2);
+      padding: 8px 18px;
+      border-radius: 9999px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--color-ink);
+      letter-spacing: 1px;
+    }
+
+    .host-connected-panel {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      gap: 28px;
+    }
+
+    .host-connected-panel.active {
+      display: flex;
+    }
+
+    .host-slide-number {
+      font-size: clamp(80px, 18vw, 160px);
+      font-weight: 800;
+      font-family: var(--font-mono);
+      line-height: 1;
+      letter-spacing: -3px;
+    }
+
+    .host-timer-big {
+      font-size: clamp(36px, 8vw, 68px);
+      font-weight: 700;
+      font-family: var(--font-mono);
+      color: var(--color-ink-muted);
+      letter-spacing: -1px;
+    }
+
+    .host-actions-hint {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    /* レーザーポインター / バーチャルカーソル (完全ボーダーレス・高視認性) */
+    #laserPointer {
+      display: none;
+      position: fixed;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255, 50, 50, 0.95) 0%, rgba(255, 50, 50, 0.35) 60%, transparent 100%);
+      box-shadow: 0 0 16px rgba(255, 50, 50, 0.85);
+      pointer-events: none;
+      z-index: 999999;
+      transform: translate(-50%, -50%);
+      transition: width 0.08s ease, height 0.08s ease;
+    }
+
+    #laserPointer.active {
+      display: block;
+    }
+
+    #laserPointer.clicking {
+      width: 34px;
+      height: 34px;
+      box-shadow: 0 0 24px rgba(255, 50, 50, 1);
+    }
+
+    /* --------------------------------------------------------------------------
        Top Bar (Icon Buttons, Zero Borders, Safe Area Compliant)
        -------------------------------------------------------------------------- */
     .bar {
@@ -1591,6 +1721,74 @@
       display: block;
       background: #000000;
     }
+
+    /* --------------------------------------------------------------------------
+       Virtual Mouse Cursor (Icon First, Zero Borders, Minimalist Overlay)
+       -------------------------------------------------------------------------- */
+    .virtual-cursor {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 24px;
+      height: 24px;
+      pointer-events: none;
+      z-index: 999999;
+      opacity: 0;
+      transform: translate3d(-100px, -100px, 0);
+      transition: opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+      will-change: transform, opacity;
+    }
+
+    .virtual-cursor.active {
+      opacity: 1;
+    }
+
+    .virtual-cursor .cursor-arrow {
+      width: 24px;
+      height: 24px;
+      display: block;
+      transform-origin: 0 0;
+      transition: transform 0.1s cubic-bezier(0.16, 1, 0.3, 1);
+      filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.45));
+    }
+
+    .virtual-cursor.clicking .cursor-arrow {
+      transform: scale(0.82);
+    }
+
+    .virtual-cursor.dragging .cursor-arrow {
+      transform: scale(1.12) rotate(-8deg);
+    }
+
+    .cursor-ripple {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 20px;
+      height: 20px;
+      margin-top: -10px;
+      margin-left: -10px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.45);
+      transform: scale(0);
+      pointer-events: none;
+      opacity: 0;
+    }
+
+    .virtual-cursor.clicking .cursor-ripple {
+      animation: cursorRipple 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes cursorRipple {
+      0% {
+        transform: scale(0.2);
+        opacity: 0.9;
+      }
+      100% {
+        transform: scale(2.8);
+        opacity: 0;
+      }
+    }
   </style>
 </head>
 <body>
@@ -1600,6 +1798,14 @@
   </video>
 
   <div id="flashOverlay" class="flash-overlay"></div>
+
+  <!-- 仮想マウスカーソル（PC画面オーバーレイ・脱AI白黒ミニマル） -->
+  <div id="virtualCursor" class="virtual-cursor" aria-hidden="true">
+    <svg class="cursor-arrow" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0 0L7 19L10 12L17 10L0 0Z" fill="#111113" stroke="#ffffff" stroke-width="1.8" stroke-linejoin="round"/>
+    </svg>
+    <div class="cursor-ripple"></div>
+  </div>
   
   <!-- Host Presentation Camera Window / Overlay (PiP or Fullscreen, Borderless, Floating) -->
   <div id="hostCameraOverlay" class="host-camera-overlay hidden">
@@ -1694,10 +1900,81 @@
     </div>
   </div>
 
+  <div id="laserPointer"></div>
+
+  <!-- 0. PC Host Presentation View (PCで開いた時のメイン待受・プレゼン画面) -->
+  <div id="viewHost" class="view-container">
+    <header class="bar">
+      <div class="bar-group">
+        <button type="button" id="btnHostToRemote" class="btn-icon" aria-label="Remote Controller" title="Switch to Remote Menu">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="5" y="2" width="14" height="20" rx="2"></rect>
+            <line x1="12" y1="18" x2="12.01" y2="18"></line>
+          </svg>
+        </button>
+        <span class="status-dot" id="hostWsDot"></span>
+      </div>
+
+      <div class="bar-group">
+        <!-- Fullscreen Button -->
+        <button type="button" id="btnHostFullscreen" class="btn-icon" aria-label="Fullscreen" title="Toggle Fullscreen">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <polyline points="9 21 3 21 3 15"></polyline>
+            <line x1="21" y1="3" x2="14" y2="10"></line>
+            <line x1="3" y1="21" x2="10" y2="14"></line>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="host-container">
+      <!-- 待受画面 (QRコード表示) -->
+      <div class="host-card" id="hostWaitingCard">
+        <img id="hostQrImg" class="host-qr-img" src="" alt="Connect QR">
+        <div class="host-room-badge">
+          <span id="hostRoomIdText">INITIALIZING...</span>
+          <button type="button" id="btnCopyHostUrl" class="btn-icon" style="width:28px; height:28px;" aria-label="Copy Link" title="Copy Link">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- 接続完了後の大画面プレゼンモニター -->
+      <div class="host-connected-panel" id="hostConnectedPanel">
+        <div class="host-timer-big" id="hostBigTimer">00:00</div>
+        <div class="host-slide-number" id="hostSlideNum">1</div>
+        <div class="host-actions-hint">
+          <button type="button" class="btn-icon" id="btnHostPrev" style="width:52px; height:52px; background:var(--color-surface-1); border-radius:16px;" aria-label="Previous">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+          </button>
+          <button type="button" class="btn-icon" id="btnHostNext" style="width:52px; height:52px; background:var(--color-ink); color:#ffffff; border-radius:16px;" aria-label="Next">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+
   <!-- 1. Menu View -->
   <div id="viewToolMenu" class="view-container active">
     <header class="bar">
       <div class="bar-group">
+        <!-- Host Screen Toggle Button (PC待受画面へ戻る) -->
+        <button type="button" id="btnMenuHost" class="btn-icon" aria-label="PC Screen" title="Switch to PC Host Screen">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+        </button>
         <div class="connection-pill disconnected" id="menuConnPill" data-route="cloud" aria-label="Connection Status">
           <span class="route-icon route-wifi">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -1720,6 +1997,15 @@
         </div>
       </div>
       <div class="bar-group">
+        <!-- Open Vercel App Button (PCでVercel固定リンクを開く) -->
+        <a id="btnOpenVercel" class="btn-icon" href="https://tool-box-pied.vercel.app/" target="_blank" rel="noopener noreferrer" aria-label="Open Vercel App" title="Open Vercel App">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+          </svg>
+        </a>
+
         <!-- Scan Camera Icon -->
         <button type="button" id="btnMenuScan" class="btn-icon" aria-label="Scan Camera">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2340,6 +2626,23 @@
         </button>
       </div>
 
+      <!-- クラウドトンネル / ローカルWi-Fi 切り替えタブバー -->
+      <div class="tab-bar">
+        <button type="button" class="tab-item active" id="tabQrTunnel" aria-label="Cloud Tunnel" title="Cloud Tunnel">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+          </svg>
+        </button>
+        <button type="button" class="tab-item" id="tabQrLocal" aria-label="Local Wi-Fi" title="Local Wi-Fi">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+            <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+            <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+            <line x1="12" y1="20" x2="12.01" y2="20"></line>
+          </svg>
+        </button>
+      </div>
+
       <div class="qr-box">
         <img id="qrImage" class="qr-img" src="" alt="QR">
         <div class="url-row">
@@ -2553,6 +2856,38 @@
 
   <script>
     // --------------------------------------------------------------------------
+    // Device & Connection Helpers
+    // --------------------------------------------------------------------------
+    // モバイル端末の正確な判定（PCでウィンドウ幅を細くした際のクライアント誤判定を防止）
+    function checkIsMobileDevice() {
+      const ua = navigator.userAgent || '';
+      if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua)) {
+        return true;
+      }
+      // iPadOS 13+ デスクトップサイト表示モード対応（WindowsタッチPCは除外）
+      if (/Macintosh/i.test(ua) && navigator.maxTouchPoints && navigator.maxTouchPoints > 1) {
+        return true;
+      }
+      return false;
+    }
+
+    var isNativeHttpBridgeReady = false;
+    var workingNativeHttpBase = '';
+
+    // いずれかの通信経路（WebRTC P2P / メインWS / ローカルNative WS / ローカルHTTPブリッジ）が開通しているか判定
+    function isAnyConnectionActive() {
+      try {
+        const hostHasPeers = (typeof isPeerHost !== 'undefined' && isPeerHost && typeof peerConnections !== 'undefined' && peerConnections && peerConnections.length > 0);
+        const clientHasPeer = (typeof peerConn !== 'undefined' && peerConn && peerConn.open);
+        const mainWsOpen = (typeof socket !== 'undefined' && socket && socket.readyState === WebSocket.OPEN);
+        const nativeWsOpen = (typeof nativeWs !== 'undefined' && nativeWs && nativeWs.readyState === WebSocket.OPEN);
+        return !!(hostHasPeers || clientHasPeer || mainWsOpen || nativeWsOpen || isNativeHttpBridgeReady);
+      } catch (e) {
+        return !!isNativeHttpBridgeReady;
+      }
+    }
+
+    // --------------------------------------------------------------------------
     // View Switcher
     // --------------------------------------------------------------------------
     function switchView(viewId) {
@@ -2563,18 +2898,17 @@
         window.scrollTo(0, 0);
       }
 
-      // スマホリモコン側で、未接続のままスライドやトラックパッド画面に入った場合は操作をブロック
+      // スマホリモコン側で、未接続のままスライドやトラックパッド画面に入った場合のみ操作をブロック
       if (connBlocker) {
-        const isClient = typeof isPeerHost !== 'undefined' && !isPeerHost;
-        const isConnected = lastConnectedState || 
-                            (typeof peerConn !== 'undefined' && peerConn && peerConn.open) || 
-                            (socket && socket.readyState === WebSocket.OPEN);
+        const isClient = checkIsMobileDevice() && !(typeof isPeerHost !== 'undefined' && isPeerHost);
+        const isConnected = lastConnectedState || isAnyConnectionActive();
         if (isClient && !isConnected && (viewId === 'viewSlideSwitch' || viewId === 'viewTrackpad')) {
           clearTimeout(blockerTimeout);
           connBlocker.classList.remove('state-connected');
           connBlocker.classList.remove('hidden');
-        } else if (viewId === 'viewToolMenu') {
-          // メニュー画面ではブロッカーを隠し、ユーザーが自由にSCANやQRを選べるようにする
+        } else if (viewId === 'viewToolMenu' || !isClient) {
+          connBlocker.classList.add('hidden');
+        } else if (isConnected && !connBlocker.classList.contains('state-connected')) {
           connBlocker.classList.add('hidden');
         }
       }
@@ -2590,6 +2924,22 @@
       pauseTimer();
       switchView('viewToolMenu');
     });
+
+    const btnMenuHost = document.getElementById('btnMenuHost');
+    const btnHostToRemote = document.getElementById('btnHostToRemote');
+    const btnHostFullscreen = document.getElementById('btnHostFullscreen');
+
+    if (btnMenuHost) btnMenuHost.addEventListener('click', () => switchView('viewHost'));
+    if (btnHostToRemote) btnHostToRemote.addEventListener('click', () => switchView('viewToolMenu'));
+    if (btnHostFullscreen) {
+      btnHostFullscreen.addEventListener('click', () => {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        } else {
+          document.exitFullscreen().catch(() => {});
+        }
+      });
+    }
 
     // --------------------------------------------------------------------------
     // System Diagnostics & Hardware Info (PC & Mobile specs inspection)
@@ -3002,6 +3352,7 @@
     let isCameraStreaming = false;
     let currentCameraFacing = 'environment'; // デフォルトは背面（書画カメラとして資料・手元を写す）
     let isHostCameraFullscreen = false;
+    let currentHostCameraLayout = 'pip';
 
     // スマホ側: ライブカメラ配信の開始（タップした瞬間にPCへ即時ポップアップ通知）
     async function startLiveCamera() {
@@ -3165,6 +3516,7 @@
     }
 
     function setHostCameraLayout(layout) {
+      currentHostCameraLayout = layout === 'fullscreen' ? 'fullscreen' : 'pip';
       if (!hostCameraWindow) return;
       if (layout === 'fullscreen') {
         isHostCameraFullscreen = true;
@@ -3302,20 +3654,33 @@
       });
     }
 
+    function isDirectNativeWsOpen() {
+      return !!((typeof nativeWs !== 'undefined' && nativeWs && nativeWs.readyState === WebSocket.OPEN) ||
+                (typeof socket !== 'undefined' && socket && socket.readyState === WebSocket.OPEN));
+    }
+
     function sendWsPayload(payload) {
+      // A. PCホスト自身での操作時: ローカルNativeサーバー（WSまたはHTTP合算ブリッジ）へ1回だけ直接送信
       if (typeof isPeerHost !== 'undefined' && isPeerHost) {
-        // PCホスト側自身でのローカル操作時は直接Nativeサーバーへ送信
         sendToNativeServer(payload);
-      } else {
-        // スマホ側操作時: P2P(WebRTC)経由で送信を試み、未達時は直接NativeServerへフォールバック
-        let sentPeer = false;
-        if (typeof sendPeerMessage === 'function') {
-          sentPeer = sendPeerMessage(payload);
-        }
-        if (!sentPeer) {
-          sendToNativeServer(payload);
-        }
+        return;
       }
+
+      // B. スマホ（リモートクライアント）での操作時: 優先順位付きの排他送信で二重発火を防止
+      // 1. 直接サーバーWebSocket（同一Wi-Fi / Cloudflare Tunnel）が開通していれば超低遅延で直接送信
+      if (isDirectNativeWsOpen()) {
+        sendToNativeServer(payload);
+        return;
+      }
+
+      // 2. WebRTC P2P（Vercel等の静的ホスト ?room= ペアリング）が開通していればPCホスト経由でブリッジ送信
+      if (typeof peerConn !== 'undefined' && peerConn && peerConn.open) {
+        peerConn.send(payload);
+        return;
+      }
+
+      // 3. フォールバック: カスタムサーバーまたは同一オリジンへのHTTP合算POSTを試行
+      sendToNativeServer(payload);
     }
 
     if (btnTrackpadBack) {
@@ -3404,9 +3769,10 @@
     // ドラッグボタン: 「長押し（ホールド）」実装
     // 押している間だけドラッグ状態になり、指を離すと即座に解除
     let isHoldingDrag = false;
+    let lastDragTouchTime = 0;
 
     function startDragHold(e) {
-      if (e) e.preventDefault();
+      if (e && e.cancelable) e.preventDefault();
       if (isHoldingDrag) return;
       isHoldingDrag = true;
       if (btnStickDragHold) btnStickDragHold.classList.add('holding');
@@ -3426,23 +3792,28 @@
     if (btnStickDragHold) {
       // touchイベントで確実に補足（pointercaptureによるマルチタッチ阻害を回避）
       btnStickDragHold.addEventListener('touchstart', (e) => {
+        lastDragTouchTime = Date.now();
         e.preventDefault();
         startDragHold(e);
       }, { passive: false });
       btnStickDragHold.addEventListener('touchend', (e) => {
+        lastDragTouchTime = Date.now();
         e.preventDefault();
         stopDragHold(e);
       }, { passive: false });
       btnStickDragHold.addEventListener('touchcancel', (e) => {
+        lastDragTouchTime = Date.now();
         stopDragHold(e);
       }, { passive: false });
 
-      // PCマウス操作時用のフォールバック
+      // PCマウス操作時用のフォールバック（タッチ端末の合成マウスイベントを除外）
       btnStickDragHold.addEventListener('mousedown', (e) => {
+        if (Date.now() - lastDragTouchTime < 500) return;
         e.preventDefault();
         startDragHold(e);
       });
       window.addEventListener('mouseup', () => {
+        if (Date.now() - lastDragTouchTime < 500) return;
         if (isHoldingDrag) stopDragHold();
       });
       btnStickDragHold.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -3497,7 +3868,14 @@
     requestAnimationFrame(trackpadSyncLoop);
 
     if (trackpadSurface) {
+      let lastPadTouchTime = 0;
+
+      trackpadSurface.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+      });
+
       trackpadSurface.addEventListener('touchstart', (e) => {
+        lastPadTouchTime = Date.now();
         e.preventDefault();
         trackpadSurface.classList.add('touching');
 
@@ -3542,6 +3920,7 @@
       }, { passive: false });
 
       trackpadSurface.addEventListener('touchmove', (e) => {
+        lastPadTouchTime = Date.now();
         e.preventDefault();
         // ★重要: e.touches(全体) ではなく e.targetTouches(トラックパッド上のみ) を参照
         const touches = e.targetTouches;
@@ -3608,6 +3987,7 @@
 
       const handleTouchEnd = (e) => {
         const now = Date.now();
+        lastPadTouchTime = now;
         if (directDragTimer) {
           clearTimeout(directDragTimer);
           directDragTimer = null;
@@ -3669,6 +4049,7 @@
       let padMouseStartTime = 0;
 
       trackpadSurface.addEventListener('mousedown', (e) => {
+        if (Date.now() - lastPadTouchTime < 500) return;
         if (e.button !== 0 && e.button !== 2) return;
         isMouseDownOnPad = true;
         padMouseStartX = e.clientX;
@@ -3681,6 +4062,7 @@
 
       window.addEventListener('mousemove', (e) => {
         if (!isMouseDownOnPad) return;
+        if (Date.now() - lastPadTouchTime < 500) return;
         const rawDx = e.clientX - padMousePrevX;
         const rawDy = e.clientY - padMousePrevY;
         padMousePrevX = e.clientX;
@@ -3699,6 +4081,11 @@
 
       window.addEventListener('mouseup', (e) => {
         if (!isMouseDownOnPad) return;
+        if (Date.now() - lastPadTouchTime < 500) {
+          isMouseDownOnPad = false;
+          trackpadSurface.classList.remove('touching');
+          return;
+        }
         isMouseDownOnPad = false;
         trackpadSurface.classList.remove('touching');
         const dist = Math.hypot(e.clientX - padMouseStartX, e.clientY - padMouseStartY);
@@ -3713,6 +4100,13 @@
         accumX = 0;
         accumY = 0;
       });
+
+      // PCブラウザ上でのマウスホイール・タッチパッドスクロール対応
+      trackpadSurface.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const step = Math.max(-40, Math.min(40, -e.deltaY * 0.25));
+        accumScroll += step;
+      }, { passive: false });
     }
 
     // --------------------------------------------------------------------------
@@ -3878,14 +4272,32 @@
           try {
             const u = new URL(detectedUrl);
             const roomParam = u.searchParams.get('room');
+            const serverParam = u.searchParams.get('server');
+            const qrHost = u.hostname;
+            const isQrServerOrigin = qrHost.includes('trycloudflare.com') ||
+                                     qrHost === 'localhost' || qrHost === '127.0.0.1' ||
+                                     qrHost.startsWith('192.168.') || qrHost.startsWith('10.') ||
+                                     /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(qrHost);
+            const targetServer = serverParam || (isQrServerOrigin ? u.origin : '');
+            if (targetServer) {
+              localStorage.setItem('wss_server_target', targetServer);
+            }
+
             if (roomParam) {
-              window.location.href = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(roomParam)}`;
+              if (isQrServerOrigin && !checkIsStaticHost()) {
+                window.location.href = detectedUrl;
+                return;
+              }
+              const nextParams = new URLSearchParams();
+              nextParams.set('room', roomParam);
+              if (targetServer) {
+                nextParams.set('server', targetServer);
+              }
+              window.location.href = `${window.location.origin}${window.location.pathname}?${nextParams.toString()}`;
               return;
             }
-            const serverParam = u.searchParams.get('server');
-            const targetServer = serverParam || u.origin;
-            localStorage.setItem('wss_server_target', targetServer);
-            if (checkIsStaticHost()) {
+
+            if (targetServer && checkIsStaticHost()) {
               window.location.href = `${window.location.origin}${window.location.pathname}?server=${encodeURIComponent(targetServer)}`;
               return;
             }
@@ -3919,11 +4331,23 @@
     // 静的ホスト判定（Vercel, Cloudflare Pages, GitHub Pages等の静的CDN環境）
     // --------------------------------------------------------------------------
     function checkIsStaticHost() {
+      if (window.location.protocol === 'file:') return true;
       const host = window.location.hostname;
-      return host.endsWith('.vercel.app') ||
-             host.endsWith('.pages.dev') ||
-             host.endsWith('.github.io') ||
-             (host !== 'localhost' && host !== '127.0.0.1' && !host.includes('trycloudflare.com'));
+      if (!host) return true;
+      // ローカルホスト・同一Wi-Fi内のプライベートIP・CloudflareクイックトンネルはNode.jsサーバー稼働環境
+      if (host === 'localhost' || host === '127.0.0.1' || 
+          host.startsWith('192.168.') || host.startsWith('10.') || 
+          /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host) ||
+          host.endsWith('.local') ||
+          host.includes('trycloudflare.com')) {
+        // ローカルホストでもポートが3000以外の開発用静的サーバー（Live Server等）の場合は静的ホストとして扱う
+        if ((host === 'localhost' || host === '127.0.0.1') && window.location.port && window.location.port !== '3000') {
+          return true;
+        }
+        return false;
+      }
+      // Vercel / Cloudflare Pages / GitHub Pages / Netlify およびカスタムドメイン静的ホスト
+      return true;
     }
 
     // --------------------------------------------------------------------------
@@ -3985,10 +4409,40 @@
     const copyUrlBtn = document.getElementById('copyUrlBtn');
     const inputServerUrl = document.getElementById('inputServerUrl');
     const btnSaveServerUrl = document.getElementById('btnSaveServerUrl');
+    const tabQrTunnel = document.getElementById('tabQrTunnel');
+    const tabQrLocal = document.getElementById('tabQrLocal');
+    const btnOpenVercel = document.getElementById('btnOpenVercel');
+
+    function syncVercelOpenButton() {
+      if (!btnOpenVercel) return;
+      const baseDeploy = localStorage.getItem('wss_deploy_host') || DEFAULT_VERCEL_DEPLOY_URL;
+      if (serverInfo && serverInfo.tunnelRemoteUrl) {
+        btnOpenVercel.href = `${baseDeploy.replace(/\/$/, '')}/?server=${encodeURIComponent(serverInfo.tunnelRemoteUrl)}`;
+      } else {
+        btnOpenVercel.href = baseDeploy;
+      }
+    }
+
+    if (tabQrTunnel && tabQrLocal) {
+      tabQrTunnel.addEventListener('click', () => {
+        activeQrTab = 'tunnel';
+        tabQrTunnel.classList.add('active');
+        tabQrLocal.classList.remove('active');
+        updateQrDisplay();
+      });
+      tabQrLocal.addEventListener('click', () => {
+        activeQrTab = 'local';
+        tabQrLocal.classList.add('active');
+        tabQrTunnel.classList.remove('active');
+        updateQrDisplay();
+      });
+    }
 
     async function renderQrCode(targetUrl) {
       if (!targetUrl) return;
       if (remoteUrlDisplay) remoteUrlDisplay.textContent = targetUrl;
+      const hostRoomIdText = document.getElementById('hostRoomIdText');
+      if (hostRoomIdText && peerRoomId) hostRoomIdText.textContent = peerRoomId.toUpperCase();
       try {
         if (window.QRCodeLib && window.QRCodeLib.toDataURL) {
           const dataUrl = await window.QRCodeLib.toDataURL(targetUrl, {
@@ -3997,47 +4451,82 @@
             color: { dark: '#181818', light: '#ffffff' }
           });
           if (qrImage) qrImage.src = dataUrl;
+          const hostQrImg = document.getElementById('hostQrImg');
+          if (hostQrImg) hostQrImg.src = dataUrl;
           return;
         }
       } catch (e) {}
 
       // フォールバック
       if (serverInfo) {
+        let fallbackUrl = '';
         if (activeQrTab === 'tunnel' && serverInfo.tunnelQrDataUrl) {
-          if (qrImage) qrImage.src = serverInfo.tunnelQrDataUrl;
+          fallbackUrl = serverInfo.tunnelQrDataUrl;
         } else if (serverInfo.localQrDataUrl) {
-          if (qrImage) qrImage.src = serverInfo.localQrDataUrl;
+          fallbackUrl = serverInfo.localQrDataUrl;
+        }
+        if (fallbackUrl) {
+          if (qrImage) qrImage.src = fallbackUrl;
+          const hostQrImg = document.getElementById('hostQrImg');
+          if (hostQrImg) hostQrImg.src = fallbackUrl;
         }
       }
     }
 
-    // スマホからアクセス可能なPCホスト接続用URLを確実に解決するヘルパー
+    // スマホからアクセス可能なPCホスト接続用URLを確実に解決するヘルパー (Vercel デプロイ完全対応)
+    const DEFAULT_VERCEL_DEPLOY_URL = 'https://tool-box-pied.vercel.app';
+
     function getHostJoinUrl() {
       const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      let baseOrigin = `${window.location.origin}${window.location.pathname}`.replace(/\/$/, '');
+      const cfg = getTargetServerConfig();
+      const savedDeployHost = localStorage.getItem('wss_deploy_host') || DEFAULT_VERCEL_DEPLOY_URL;
 
-      if (isLocalHost) {
-        // ローカルPC環境の場合、スマホから直接通信可能なトンネルURL（最優先: 4G/5G・別Wi-Fi対応）またはローカルIPを使用
-        if (serverInfo && serverInfo.tunnelRemoteUrl) {
-          baseOrigin = serverInfo.tunnelRemoteUrl.replace(/\/$/, '');
-        } else if (serverInfo && serverInfo.localRemoteUrl) {
-          baseOrigin = serverInfo.localRemoteUrl.replace(/\/$/, '');
+      // 1. PC側が Vercel などの公開URL上で稼働している場合
+      if (!isLocalHost) {
+        const baseOrigin = `${window.location.origin}${window.location.pathname}`.replace(/\/$/, '');
+        if (peerRoomId) {
+          // トンネルまたはカスタムサーバーがあれば連携パラメータを付与
+          if (cfg.hasCustomServer && cfg.httpOrigin) {
+            return `${baseOrigin}/?room=${peerRoomId}&server=${encodeURIComponent(cfg.httpOrigin)}`;
+          }
+          return `${baseOrigin}/?room=${peerRoomId}`;
         }
+        return baseOrigin;
       }
 
-      if (peerRoomId) {
-        // WebRTC ルームIDと WebSocketサーバーターゲットを同時に付与（デュアル接続冗長性）
-        if (isLocalHost && serverInfo && serverInfo.tunnelRemoteUrl) {
-          const tunnelHost = serverInfo.tunnelRemoteUrl.replace(/\/$/, '');
-          return `${tunnelHost}/?room=${peerRoomId}&server=${encodeURIComponent(tunnelHost)}`;
-        } else if (isLocalHost && serverInfo && serverInfo.localRemoteUrl) {
+      // 2. PC側がローカルサーバー（localhost）上で稼働している場合
+      let serverTarget = '';
+      if (serverInfo && serverInfo.tunnelRemoteUrl) {
+        serverTarget = serverInfo.tunnelRemoteUrl.replace(/\/$/, '');
+      } else if (serverInfo && serverInfo.localRemoteUrl) {
+        serverTarget = serverInfo.localRemoteUrl.replace(/\/$/, '');
+      }
+
+      // クラウドトンネルタブ: Vercel公開URL宛てのQRコードを最優先生成（常に固定の tool-box-pied.vercel.app をスキャン可能）
+      if (activeQrTab === 'tunnel') {
+        const baseDeploy = savedDeployHost.replace(/\/$/, '');
+        if (peerRoomId) {
+          if (serverTarget) {
+            return `${baseDeploy}/?room=${peerRoomId}&server=${encodeURIComponent(serverTarget)}`;
+          }
+          return `${baseDeploy}/?room=${peerRoomId}`;
+        }
+        if (serverTarget) {
+          return `${baseDeploy}/?server=${encodeURIComponent(serverTarget)}`;
+        }
+        return baseDeploy;
+      } else {
+        // ローカルWi-Fi直接接続タブ
+        if (serverInfo && serverInfo.localRemoteUrl) {
           const localHost = serverInfo.localRemoteUrl.replace(/\/$/, '');
-          return `${localHost}/?room=${peerRoomId}&server=${encodeURIComponent(localHost)}`;
+          if (peerRoomId) {
+            return `${localHost}/?room=${peerRoomId}&server=${encodeURIComponent(localHost)}`;
+          }
+          return localHost;
         }
-        return `${baseOrigin}/?room=${peerRoomId}`;
       }
 
-      return baseOrigin;
+      return `${window.location.origin}${window.location.pathname}`;
     }
 
     async function updateQrDisplay() {
@@ -4047,7 +4536,7 @@
 
       let targetUrl = '';
 
-      // PC側でWebRTCルームID（peerRoomId）が準備できている場合は最優先でスマホ接続URLを生成
+      // PC側で確定WebRTCルームID（peerRoomId）が準備できている場合は最優先でスマホ接続URLを生成
       if (peerRoomId) {
         targetUrl = getHostJoinUrl();
       } else if (activeQrTab === 'tunnel') {
@@ -4079,7 +4568,14 @@
         }
       }
 
+      // 静的ホストかつルームID未確定時は、QRの未確定スキャンを防ぐためURL確定後に描画
+      if (isStaticHost && !peerRoomId && !cfg.hasCustomServer) {
+        if (remoteUrlDisplay) remoteUrlDisplay.textContent = 'Initializing P2P Room...';
+        return;
+      }
+
       await renderQrCode(targetUrl);
+      syncVercelOpenButton();
     }
 
     async function loadServerInfo() {
@@ -4203,14 +4699,15 @@
 
       socket.addEventListener('open', () => {
         updateWsIndicator(true);
-        const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const isMobile = checkIsMobileDevice();
 
         socket.send(JSON.stringify({
           type: 'register',
-          clientType: isLocalHost ? 'pc' : 'mobile'
+          clientType: isMobile ? 'mobile' : 'pc'
         }));
         // スマホ側でWebSocketが接続できた場合、WebRTC待機中であっても即時アンロックして操作可能にする
-        if (!isLocalHost) {
+        if (isMobile) {
+          if (typeof dismissConnectionBlocker === 'function') dismissConnectionBlocker();
           triggerPairingAnimation();
           // PCのシステム診断データを事前要求
           try {
@@ -4338,11 +4835,14 @@
         } catch (e) {}
       }
 
-      // 4. WebSocket 接続先判定
+      // 4. WebSocket & ローカルブリッジ接続先判定
       if (socket && socket.readyState === WebSocket.OPEN && socket.url) {
         if (/127\.0\.0\.1|localhost|192\.168\.|10\./.test(socket.url)) {
           return 'wifi';
         }
+      }
+      if ((typeof nativeWs !== 'undefined' && nativeWs && nativeWs.readyState === WebSocket.OPEN) || isNativeHttpBridgeReady) {
+        return 'wifi';
       }
 
       // 5. WebRTC DataChannel がアクティブで通信可能な場合
@@ -4394,12 +4894,17 @@
       }, 2100);
     }
 
-    // スマホとPCのペアリングが成立した瞬間のみに発火させる（ページ初期読込時の誤発火を完全防止）
+    // スマホとPCのペアリングが成立した瞬間のみに発火させる（ページ初期読込時の誤発火を防止しつつ、初期ブロッカー表示中は高速接続でも確実に解除）
     function triggerPairingAnimation() {
       const now = Date.now();
-      // ページ読み込み後1.0秒以内の初期化ガード、または直近2.2秒以内の連続発火を抑制
-      if (now - pageLoadTimestamp < 1000) return;
-      if (now - lastPairingAnimTime < 2200) return;
+      const isBlockerVisible = !!(connBlocker && !connBlocker.classList.contains('hidden'));
+      if (!isBlockerVisible && (now - pageLoadTimestamp < 1000)) return;
+      if (now - lastPairingAnimTime < 2200) {
+        if (isBlockerVisible && !connBlocker.classList.contains('state-connected')) {
+          triggerConnectionAnimation();
+        }
+        return;
+      }
       lastPairingAnimTime = now;
 
       const pills = [
@@ -4420,10 +4925,7 @@
     }
 
     async function updateWsIndicator(isConnected) {
-      const isPeerActive = (typeof isPeerHost !== 'undefined' && isPeerHost && peerConnections && peerConnections.length > 0) || 
-                           (typeof peerConn !== 'undefined' && peerConn && peerConn.open);
-      const isWsActive = socket && socket.readyState === WebSocket.OPEN;
-      const connected = (typeof isConnected === 'boolean' && isConnected) || isPeerActive || isWsActive;
+      const connected = (typeof isConnected === 'boolean' && isConnected) || isAnyConnectionActive();
 
       if (connected) {
         currentRouteType = await detectActualRouteType();
@@ -4450,12 +4952,19 @@
       });
 
       // スマホ（リモコン）側で、かつコントローラー画面（スライドやトラックパッド）操作中に未接続になった場合のみブロック
-      const isClientDevice = typeof isPeerHost !== 'undefined' && !isPeerHost;
+      const isClientDevice = checkIsMobileDevice() && !(typeof isPeerHost !== 'undefined' && isPeerHost);
       if (connBlocker) {
-        if (!connected && isClientDevice && isControllerViewActive()) {
+        if (connected) {
+          // 接続確立済みにもかかわらず待機スピナーのまま残っている場合は確実にアンロック
+          if (!connBlocker.classList.contains('hidden') && !connBlocker.classList.contains('state-connected')) {
+            connBlocker.classList.add('hidden');
+          }
+        } else if (isClientDevice && isControllerViewActive()) {
           clearTimeout(blockerTimeout);
           connBlocker.classList.remove('state-connected');
           connBlocker.classList.remove('hidden');
+        } else if (!isClientDevice) {
+          connBlocker.classList.add('hidden');
         }
       }
 
@@ -4477,6 +4986,65 @@
     const flashOverlay = document.getElementById('flashOverlay');
     const btnNext = document.getElementById('btnNext');
     const btnPrev = document.getElementById('btnPrev');
+
+    // 仮想マウスカーソル（Web完結型・脱AI白黒ミニマル）
+    const virtualCursor = document.getElementById('virtualCursor');
+    let cursorX = (typeof window !== 'undefined' ? window.innerWidth / 2 : 500);
+    let cursorY = (typeof window !== 'undefined' ? window.innerHeight / 2 : 400);
+    let cursorHideTimeout = null;
+    let isCursorDragging = false;
+
+    function updateVirtualCursorPosition(dx, dy) {
+      if (!virtualCursor) return;
+      const winW = (typeof window !== 'undefined' && window.innerWidth) ? window.innerWidth : 1920;
+      const winH = (typeof window !== 'undefined' && window.innerHeight) ? window.innerHeight : 1080;
+      cursorX = Math.max(0, Math.min(winW - 2, cursorX + (Number(dx) || 0)));
+      cursorY = Math.max(0, Math.min(winH - 2, cursorY + (Number(dy) || 0)));
+
+      virtualCursor.style.transform = 'translate3d(' + cursorX + 'px, ' + cursorY + 'px, 0)';
+      virtualCursor.classList.add('active');
+
+      clearTimeout(cursorHideTimeout);
+      cursorHideTimeout = setTimeout(() => {
+        if (virtualCursor && !isCursorDragging) {
+          virtualCursor.classList.remove('active');
+        }
+      }, 3000);
+    }
+
+    function triggerVirtualCursorClick(button) {
+      if (!virtualCursor) return;
+      virtualCursor.classList.remove('clicking');
+      void virtualCursor.offsetWidth;
+      virtualCursor.classList.add('clicking');
+      setTimeout(() => {
+        if (virtualCursor) virtualCursor.classList.remove('clicking');
+      }, 200);
+
+      try {
+        const el = document.elementFromPoint(cursorX, cursorY);
+        if (el && !el.closest('#virtualCursor')) {
+          el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, clientX: cursorX, clientY: cursorY }));
+        }
+      } catch (e) {}
+    }
+
+    function setVirtualCursorDrag(state) {
+      if (!virtualCursor) return;
+      if (state === 'start') {
+        isCursorDragging = true;
+        virtualCursor.classList.add('dragging', 'active');
+        clearTimeout(cursorHideTimeout);
+      } else {
+        isCursorDragging = false;
+        virtualCursor.classList.remove('dragging');
+        cursorHideTimeout = setTimeout(() => {
+          if (virtualCursor && !isCursorDragging) {
+            virtualCursor.classList.remove('active');
+          }
+        }, 3000);
+      }
+    }
 
     // ストップウォッチ (デフォルト: カウントアップ方式 00:00スタート)
     let targetTotalSeconds = 0;
@@ -4586,11 +5154,21 @@
         currentSlide = Math.max(1, currentSlide - 1);
       }
 
-      if (typeof sendPeerMessage === 'function') {
-        sendPeerMessage({ type: 'command', action: action, slide: currentSlide });
+      const cmdPayload = { type: 'command', action: action, slide: currentSlide };
+      if (typeof isPeerHost !== 'undefined' && isPeerHost) {
+        if (typeof peerConnections !== 'undefined' && peerConnections) {
+          peerConnections.forEach(c => {
+            if (c && c.open) c.send({ type: 'sync_state', slide: currentSlide });
+          });
+        }
+        sendToNativeServer({ type: 'command', action });
+      } else if (isDirectNativeWsOpen()) {
+        sendToNativeServer(cmdPayload);
+      } else if (typeof peerConn !== 'undefined' && peerConn && peerConn.open) {
+        peerConn.send(cmdPayload);
+      } else {
+        sendToNativeServer(cmdPayload);
       }
-
-      sendToNativeServer({ type: 'command', action });
     }
 
     function bindAction(el, action) {
@@ -4838,9 +5416,14 @@
         } catch (e) {}
       }
 
-      // ホスト側自身での操作実行（Native Server直結）
-      if (isPeerHost) {
-        sendToNativeServer(msg);
+      // ホスト側自身でのネイティブ操作実行（sync_state等の制御通知は除外し無駄なPOSTを防止）
+      if (isPeerHost && msg && typeof msg === 'object') {
+        const t = msg.type;
+        if (t === 'command' || t === 'mouse_move' || t === 'mouse_click' ||
+            t === 'mouse_drag' || t === 'mouse_scroll' || t === 'clipboard' ||
+            t === 'keyboard_text' || t === 'keyboard_key') {
+          sendToNativeServer(msg);
+        }
       }
 
       return sent;
@@ -4856,30 +5439,40 @@
     }
 
     function initWebRTCPeer() {
-      if (typeof Peer === 'undefined') {
-        console.warn('PeerJS not loaded');
-        return;
-      }
-
       const urlParams = new URLSearchParams(window.location.search);
       const queryRoom = urlParams.get('room');
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+      const isMobile = checkIsMobileDevice();
+
+      // PeerJS未読込時でもPC/スマホ判定だけは確実に設定（ローカルWS/HTTPブリッジ操作を阻害しない）
+      if (!queryRoom && !isMobile) {
+        isPeerHost = true;
+        if (connBlocker) connBlocker.classList.add('hidden');
+      } else {
+        isPeerHost = false;
+      }
+
+      if (typeof Peer === 'undefined') {
+        console.warn('PeerJS not loaded');
+        if (connBlocker) connBlocker.classList.add('hidden');
+        return;
+      }
 
       if (queryRoom) {
         // === スマホ（リモコン）側 ===
         isPeerHost = false;
         peerRoomId = queryRoom;
-        if (connBlocker) {
+        if (connBlocker && !isAnyConnectionActive()) {
           connBlocker.classList.remove('hidden');
           connBlocker.classList.remove('state-connected');
         }
         initClientPeer(queryRoom);
       } else if (!isMobile) {
-        // === PC（大画面ホスト）側 === (QRコードを表示するため画面全体を初期ブロックしない)
+        // === PC（大画面ホスト）側 === (待受画面とQRコードを表示)
         isPeerHost = true;
         if (connBlocker) {
           connBlocker.classList.add('hidden');
         }
+        switchView('viewHost');
         initHostPeer();
       } else {
         // スマホで直接開いた場合（メニュー画面を自由に操作可能にするため初期ブロッカーは非表示）
@@ -4891,7 +5484,7 @@
     }
 
     // --------------------------------------------------------------------------
-    // WebRTC PeerJS 設定 (Google公開STUNサーバーによる高信頼P2P直結)
+    // WebRTC PeerJS 設定 (Google / Cloudflare STUN & OpenRelay TURN 中継リレー冗長化)
     // --------------------------------------------------------------------------
     const PEER_CONFIG = {
       debug: 1,
@@ -4900,28 +5493,50 @@
           { urls: 'stun:stun.l.google.com:19302' },
           { urls: 'stun:stun1.l.google.com:19302' },
           { urls: 'stun:stun2.l.google.com:19302' },
-          { urls: 'stun:stun3.l.google.com:19302' },
-          { urls: 'stun:stun4.l.google.com:19302' }
+          { urls: 'stun:stun.cloudflare.com:3478' },
+          // 携帯キャリア回線（4G/5G/CGNAT）や厳しいファイアウォール下でも100%接続を成立させるTURNリレー
+          {
+            urls: [
+              'turn:openrelay.metered.ca:80',
+              'turn:openrelay.metered.ca:443',
+              'turn:openrelay.metered.ca:443?transport=tcp'
+            ],
+            username: 'openrelay',
+            credential: 'openrelay'
+          }
         ],
         iceCandidatePoolSize: 10
       }
     };
 
     // ホスト（PC側）の初期化
+    let isHostPeerOpening = false;
     function initHostPeer() {
+      if (isHostPeerOpening && peer && !peer.destroyed) return;
+      isHostPeerOpening = true;
+
       const generateId = () => 'mt' + Math.random().toString(36).substring(2, 8);
       const shortId = generateId();
-      peerRoomId = shortId;
 
       try {
+        if (peer && !peer.destroyed) {
+          try { peer.destroy(); } catch (e) {}
+        }
         peer = new Peer(shortId, PEER_CONFIG);
       } catch(e) {
-        peer = new Peer(PEER_CONFIG);
+        try {
+          peer = new Peer(PEER_CONFIG);
+        } catch (e2) {
+          isHostPeerOpening = false;
+          return;
+        }
       }
 
       peer.on('open', async (id) => {
+        isHostPeerOpening = false;
+        // サーバー上で登録が成功した確定IDのみを採用し、未確定IDでのQR生成を防止
         peerRoomId = id;
-        console.log('[WebRTC Host] ルーム開設完了:', id);
+        console.log('[WebRTC Host] ルーム開設完了（確定ID）:', id);
         updateQrDisplay();
       });
 
@@ -4930,6 +5545,9 @@
         peerConnections.push(conn);
         conn.on('open', () => {
           updateWsIndicator(true);
+          if (hostWaitingCard) hostWaitingCard.style.display = 'none';
+          if (hostConnectedPanel) hostConnectedPanel.classList.add('active');
+          updateHostDisplay();
           conn.send({ 
             type: 'sync_state', 
             slide: currentSlide, 
@@ -4952,14 +5570,23 @@
           peerConnections = peerConnections.filter(c => c !== conn);
           if (peerConnections.length === 0) {
             updateWsIndicator(false);
+            if (hostWaitingCard) hostWaitingCard.style.display = 'flex';
+            if (hostConnectedPanel) hostConnectedPanel.classList.remove('active');
           }
+        });
+
+        conn.on('error', (err) => {
+          console.warn('[WebRTC Host] Conn error:', err);
         });
       });
 
       peer.on('error', (err) => {
         console.warn('Peer host error:', err);
+        isHostPeerOpening = false;
         if (err.type === 'unavailable-id') {
-          setTimeout(initHostPeer, 500);
+          setTimeout(initHostPeer, 300);
+        } else {
+          setTimeout(initHostPeer, 3000);
         }
       });
 
@@ -4987,20 +5614,75 @@
       });
     }
 
-    // クライアント（スマホ側）の初期化
+    // クライアント（スマホ側）の初期化 (ロードループ防止 & 自動タイムアウト解除 & 再試行)
     let targetHostPeerId = null;
+    let clientBlockerFallbackTimer = null;
+    let clientPeerRetryCount = 0;
+    const MAX_PEER_RETRIES = 3;
+
+    function dismissConnectionBlocker() {
+      if (clientBlockerFallbackTimer) {
+        clearTimeout(clientBlockerFallbackTimer);
+        clientBlockerFallbackTimer = null;
+      }
+      if (connBlocker) {
+        connBlocker.classList.add('hidden');
+      }
+    }
+
     function initClientPeer(targetHostId) {
+      if (!targetHostId) return;
       targetHostPeerId = targetHostId;
-      peer = new Peer(PEER_CONFIG);
+
+      // 最大5秒のフェイルセーフ: キャリア回線（4G/5G）でのICE/TURNハンドシェイクを待機しつつ、開通しない場合は全画面スピナーを確実に自動解除
+      if (clientBlockerFallbackTimer) clearTimeout(clientBlockerFallbackTimer);
+      clientBlockerFallbackTimer = setTimeout(() => {
+        console.warn('[WebRTC Client] 接続待機タイムアウト: スピナーを解除し操作画面を解放します');
+        dismissConnectionBlocker();
+      }, 5000);
+
+      try {
+        if (peer && !peer.destroyed) {
+          try { peer.destroy(); } catch (e) {}
+        }
+        peer = new Peer(PEER_CONFIG);
+      } catch (e) {
+        console.warn('Peer client init error:', e);
+        dismissConnectionBlocker();
+        return;
+      }
 
       peer.on('open', () => {
         console.log('[WebRTC Client] ホスト接続開始:', targetHostId);
+        connectToHostPeer(targetHostId);
+      });
+
+      peer.on('error', (err) => {
+        console.warn('Peer client error:', err);
+        // エラー発生時はスピナーを即座に解除してロードループを防止
+        dismissConnectionBlocker();
+        if (clientPeerRetryCount < MAX_PEER_RETRIES && (err.type === 'peer-unavailable' || err.type === 'network' || err.type === 'server-error')) {
+          clientPeerRetryCount++;
+          console.log(`[WebRTC Client] 接続再試行 (${clientPeerRetryCount}/${MAX_PEER_RETRIES})...`);
+          setTimeout(() => {
+            if (targetHostPeerId) initClientPeer(targetHostPeerId);
+          }, 1500);
+        }
+      });
+    }
+
+    function connectToHostPeer(targetHostId) {
+      if (!peer || peer.destroyed) return;
+      try {
         const conn = peer.connect(targetHostId, { reliable: true });
         peerConn = conn;
 
         conn.on('open', () => {
           console.log('[WebRTC Client] ホストとP2P接続確立！');
+          clientPeerRetryCount = 0;
+          dismissConnectionBlocker();
           updateWsIndicator(true);
+          switchView('viewSlideSwitch');
           triggerPairingAnimation();
           if (navigator.vibrate) try { navigator.vibrate([60, 40, 60]); } catch(e) {}
         });
@@ -5020,125 +5702,412 @@
 
         conn.on('close', () => {
           updateWsIndicator(false);
+          dismissConnectionBlocker();
         });
-      });
 
-      peer.on('error', (err) => {
-        console.warn('Peer client error:', err);
-      });
+        conn.on('error', (err) => {
+          console.warn('[WebRTC Client] Conn error:', err);
+          dismissConnectionBlocker();
+        });
+
+        // ICE Connection State 監視
+        if (conn.peerConnection) {
+          conn.peerConnection.addEventListener('iceconnectionstatechange', () => {
+            const state = conn.peerConnection ? conn.peerConnection.iceConnectionState : '';
+            console.log('[WebRTC Client] ICE state change:', state);
+            if (state === 'connected' || state === 'completed') {
+              dismissConnectionBlocker();
+              updateWsIndicator(true);
+              triggerPairingAnimation();
+            } else if (state === 'failed' || state === 'disconnected') {
+              dismissConnectionBlocker();
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('connectToHostPeer error:', e);
+        dismissConnectionBlocker();
+      }
     }
 
     // --------------------------------------------------------------------------
-    // Native OS Server 通信管理 (Win32 Native API 物理操作直結)
+    // Native OS Server 通信管理 (Win32 Native API 物理操作直結 & HTTPS静的ホスト用HTTP合算ブリッジ)
     // --------------------------------------------------------------------------
-    let nativeWs = null;
+    var nativeWs = null;
     let isConnectingNativeWs = false;
+    let nativeWsBlockedByHttps = false;
+    let nativeBridgeProbeTimer = null;
+    let wsUpgradeAttemptedAfterProbe = false;
+
+    // HTTP POST 合算（Coalescing）キュー（HTTPS環境で ws://127.0.0.1:3000 が遮断される場合でも60fpsで滑らかに送信）
+    let httpPendingDx = 0;
+    let httpPendingDy = 0;
+    let httpPendingScroll = 0;
+    let httpActionQueue = [];
+    let isHttpFlushInFlight = false;
+    let httpFlushTimer = null;
+
+    function getNativeHttpCandidates() {
+      const targetCfg = getTargetServerConfig();
+      const staticEnv = checkIsStaticHost();
+      const mobileEnv = checkIsMobileDevice();
+      const list = [];
+
+      if (workingNativeHttpBase) {
+        list.push(workingNativeHttpBase);
+      }
+      if (targetCfg.hasCustomServer && targetCfg.httpOrigin && targetCfg.httpOrigin !== 'null') {
+        if (!list.includes(targetCfg.httpOrigin)) list.push(targetCfg.httpOrigin);
+      }
+      if (!staticEnv && window.location.origin && window.location.origin !== 'null' && window.location.protocol !== 'file:') {
+        if (!list.includes(window.location.origin)) list.push(window.location.origin);
+      }
+      // PCホスト環境（Vercel/Cloudflare Pages/GitHub Pages/file://直開き/別ポート開発サーバー等）では常にローカル 127.0.0.1:3000 をブリッジ対象に含める
+      if (!mobileEnv) {
+        const localBridge = 'http://127.0.0.1:3000';
+        if (!list.includes(localBridge)) list.push(localBridge);
+      }
+      return list;
+    }
+
+    function startNativeBridgeProbing() {
+      probeNativeHttpBridge();
+      if (!nativeBridgeProbeTimer) {
+        nativeBridgeProbeTimer = setInterval(probeNativeHttpBridge, 5000);
+      }
+    }
+
+    // ローカル server.js (http://127.0.0.1:3000) の生存確認とトンネル情報取得
+    async function probeNativeHttpBridge() {
+      if (checkIsMobileDevice()) return false;
+      const candidates = getNativeHttpCandidates();
+      for (const base of candidates) {
+        try {
+          const res = await fetch(`${base}/api/info`, {
+            method: 'GET',
+            mode: 'cors',
+            signal: AbortSignal.timeout(1500)
+          });
+          if (res.ok) {
+            const info = await res.json();
+            workingNativeHttpBase = base;
+            const becameReady = !isNativeHttpBridgeReady;
+            isNativeHttpBridgeReady = true;
+            if (info && (!serverInfo || (info.tunnelRemoteUrl && info.tunnelRemoteUrl !== serverInfo.tunnelRemoteUrl))) {
+              serverInfo = info;
+              updateQrDisplay();
+            }
+            if (becameReady) {
+              updateWsIndicator(true);
+            }
+            // 後から start.vbs が起動された場合に1度だけWebSocket昇格も試行
+            if (!wsUpgradeAttemptedAfterProbe && (!nativeWs || nativeWs.readyState !== WebSocket.OPEN)) {
+              wsUpgradeAttemptedAfterProbe = true;
+              nativeWsBlockedByHttps = false;
+              connectNativeServer();
+            }
+            return true;
+          }
+        } catch (e) {}
+      }
+      if (isNativeHttpBridgeReady) {
+        isNativeHttpBridgeReady = false;
+        updateWsIndicator(false);
+      }
+      return false;
+    }
+
+    async function postToNativeHttp(bodyObj) {
+      const candidates = getNativeHttpCandidates();
+      if (candidates.length === 0) return false;
+      const bodyStr = JSON.stringify(bodyObj);
+
+      for (const base of candidates) {
+        try {
+          const res = await fetch(`${base}/api/native`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: bodyStr,
+            mode: 'cors'
+          });
+          if (res.ok) {
+            if (workingNativeHttpBase !== base) {
+              workingNativeHttpBase = base;
+            }
+            if (!isNativeHttpBridgeReady && !checkIsMobileDevice()) {
+              isNativeHttpBridgeReady = true;
+              updateWsIndicator(true);
+            }
+            return true;
+          }
+        } catch (e) {
+          if (workingNativeHttpBase === base) {
+            workingNativeHttpBase = '';
+          }
+        }
+      }
+      return false;
+    }
+
+    function scheduleHttpNativeFlush(immediate) {
+      if (isHttpFlushInFlight) return;
+      if (immediate) {
+        if (httpFlushTimer) {
+          clearTimeout(httpFlushTimer);
+          httpFlushTimer = null;
+        }
+        flushHttpNativeQueue();
+        return;
+      }
+      if (!httpFlushTimer) {
+        httpFlushTimer = setTimeout(flushHttpNativeQueue, 16);
+      }
+    }
+
+    async function flushHttpNativeQueue() {
+      httpFlushTimer = null;
+      if (isHttpFlushInFlight) return;
+
+      const dx = Math.round(httpPendingDx);
+      const dy = Math.round(httpPendingDy);
+      const scroll = Math.round(httpPendingScroll);
+      const actions = httpActionQueue.splice(0, httpActionQueue.length);
+
+      httpPendingDx -= dx;
+      httpPendingDy -= dy;
+      httpPendingScroll -= scroll;
+
+      const events = [];
+      if (dx !== 0 || dy !== 0) {
+        events.push({ type: 'mouse_move', dx, dy });
+      }
+      if (scroll !== 0) {
+        events.push({ type: 'mouse_scroll', delta: scroll });
+      }
+      for (const act of actions) {
+        events.push(act);
+      }
+
+      if (events.length === 0) return;
+
+      isHttpFlushInFlight = true;
+      try {
+        const payload = events.length === 1 ? events[0] : { type: 'batch', events };
+        await postToNativeHttp(payload);
+      } finally {
+        isHttpFlushInFlight = false;
+        // 送信中に新しい移動・クリックが蓄積していれば直ちに次フレームを送信
+        if (Math.round(httpPendingDx) !== 0 || Math.round(httpPendingDy) !== 0 ||
+            Math.round(httpPendingScroll) !== 0 || httpActionQueue.length > 0) {
+          scheduleHttpNativeFlush(httpActionQueue.length > 0);
+        }
+      }
+    }
 
     function connectNativeServer() {
+      // スマホ端末のサーバー接続は connectWebSocket() の socket に一本化（スマホ自身の 127.0.0.1:3000 接続ループを防止）
+      if (checkIsMobileDevice()) return;
+
+      // すでにメイン socket がローカルサーバーと接続中・接続済みの場合は二重接続不要
+      if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) && !checkIsStaticHost()) {
+        return;
+      }
+
+      if (nativeWsBlockedByHttps) {
+        startNativeBridgeProbing();
+        return;
+      }
+
       if (isConnectingNativeWs) return;
       if (nativeWs && (nativeWs.readyState === WebSocket.OPEN || nativeWs.readyState === WebSocket.CONNECTING)) {
         return;
       }
       isConnectingNativeWs = true;
 
-      const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const staticEnv = checkIsStaticHost();
       const isHttps = window.location.protocol === 'https:';
-      const primaryWsUrl = `${isHttps ? 'wss:' : 'ws:'}//${window.location.host}`;
-      const fallbackWsUrl = 'ws://127.0.0.1:3000';
-
-      const targetUrl = isLocalHost ? primaryWsUrl : (checkIsStaticHost() ? fallbackWsUrl : primaryWsUrl);
+      const targetUrl = (!staticEnv && window.location.host)
+        ? `${isHttps ? 'wss:' : 'ws:'}//${window.location.host}`
+        : 'ws://127.0.0.1:3000';
 
       try {
         nativeWs = new WebSocket(targetUrl);
       } catch (err) {
         isConnectingNativeWs = false;
-        setTimeout(connectNativeServer, 2000);
+        if (isHttps && targetUrl.startsWith('ws://')) {
+          nativeWsBlockedByHttps = true;
+          startNativeBridgeProbing();
+          return;
+        }
+        setTimeout(connectNativeServer, 3000);
         return;
       }
 
-      nativeWs.addEventListener('open', () => {
+      const currentWs = nativeWs;
+      currentWs.addEventListener('open', () => {
+        currentWs._wasEverOpen = true;
         isConnectingNativeWs = false;
-        nativeWs.send(JSON.stringify({ type: 'register', clientType: 'pc_host' }));
+        currentWs.send(JSON.stringify({ type: 'register', clientType: 'pc_host' }));
         updateWsIndicator(true);
       });
 
-      nativeWs.addEventListener('close', () => {
+      currentWs.addEventListener('close', () => {
         isConnectingNativeWs = false;
-        nativeWs = null;
+        const wasOpen = !!currentWs._wasEverOpen;
+        if (nativeWs === currentWs) {
+          nativeWs = null;
+        }
+        if (isHttps && !wasOpen && targetUrl.startsWith('ws://')) {
+          // HTTPS静的ホスト上で ws://127.0.0.1:3000 がブロックされた場合はHTTP合算ブリッジモードへ切り替え
+          nativeWsBlockedByHttps = true;
+          startNativeBridgeProbing();
+          return;
+        }
         updateWsIndicator(false);
-        setTimeout(connectNativeServer, 2000);
+        setTimeout(connectNativeServer, 3000);
       });
 
-      nativeWs.addEventListener('error', () => {
+      currentWs.addEventListener('error', () => {
         isConnectingNativeWs = false;
       });
     }
 
     function sendToNativeServer(payload) {
-      const msg = typeof payload === 'string' ? payload : JSON.stringify(payload);
-      let sent = false;
+      if (!payload) return false;
+      let obj = payload;
+      let msg = '';
+      if (typeof payload === 'string') {
+        msg = payload;
+        try { obj = JSON.parse(payload); } catch (e) { return false; }
+      } else {
+        msg = JSON.stringify(payload);
+      }
 
       // 1. 専用Native OS WebSocket接続
       if (nativeWs && nativeWs.readyState === WebSocket.OPEN) {
         nativeWs.send(msg);
-        sent = true;
-      } else if (socket && socket.readyState === WebSocket.OPEN) {
-        // 2. 汎用メインWebSocket接続 (nativeWs未接続時のフォールバック)
+        return true;
+      }
+      // 2. 汎用メインWebSocket接続
+      if (socket && socket.readyState === WebSocket.OPEN) {
         socket.send(msg);
-        sent = true;
+        return true;
       }
 
-      // 3. HTTP POST フォールバック (command/clipboard/key のみ。高頻度マウス移動では絶対にfetchしない！)
-      const isMouseStream = payload && (payload.type === 'mouse_move' || payload.type === 'mouse_scroll');
-      if (!isMouseStream && !sent) {
-        try {
-          fetch('http://127.0.0.1:3000/api/native', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: msg,
-            mode: 'cors'
-          }).catch(() => {});
-        } catch (e) {}
+      // 3. HTTP POST 合算ブリッジフォールバック（HTTPS静的ホスト→127.0.0.1:3000 でも mouse_move / mouse_scroll を一切破棄しない）
+      const candidates = getNativeHttpCandidates();
+      if (candidates.length > 0) {
+        if (obj.type === 'mouse_move') {
+          httpPendingDx += (Number(obj.dx) || 0);
+          httpPendingDy += (Number(obj.dy) || 0);
+          scheduleHttpNativeFlush(false);
+          return true;
+        }
+        if (obj.type === 'mouse_scroll') {
+          httpPendingScroll += (Number(obj.delta) || 0);
+          scheduleHttpNativeFlush(false);
+          return true;
+        }
+        // クリック・ドラッグ・コマンド・キーボード等は直前の移動量と順序を保って直ちにバッチフラッシュ
+        httpActionQueue.push(obj);
+        scheduleHttpNativeFlush(true);
+        return true;
       }
 
-      if (!sent && (!nativeWs || nativeWs.readyState !== WebSocket.CONNECTING)) {
+      if (!checkIsMobileDevice() && !nativeWsBlockedByHttps && (!nativeWs || nativeWs.readyState !== WebSocket.CONNECTING)) {
         connectNativeServer();
       }
-      return sent;
+      return false;
     }
 
-    // ホスト側でのコマンド・マウス操作受信処理 (Win32 Native API へ完全直結)
+    let pointerX = (typeof window !== 'undefined' ? window.innerWidth / 2 : 500);
+    let pointerY = (typeof window !== 'undefined' ? window.innerHeight / 2 : 400);
+    let pointerHideTimeout = null;
+    const laserPointer = document.getElementById('laserPointer');
+
+    // ホスト側でのコマンド・マウス操作受信処理 (Web完結 & Win32 Native API ハイブリッド直結)
     function handleIncomingPeerData(data) {
       if (!data) return;
+      const alreadyHandled = !!data._handledByServer;
 
-      // 1. スライド操作コマンド (OSの最前面PowerPoint / Googleスライド / PDF送り)
+      // 1. スライド操作コマンド (Web画面上の大画面スライド送り & ブラウザ内キーイベント & OS物理キー)
       if (data.type === 'command') {
         if (data.action === 'next') {
           currentSlide++;
+          // PCブラウザ上で右矢印キーイベントを発火（ブラウザ内のGoogleスライド/PDF/Webスライドを次へ送る）
+          try {
+            window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', keyCode: 39, bubbles: true }));
+            window.dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowRight', keyCode: 39, bubbles: true }));
+          } catch (e) {}
         } else if (data.action === 'prev') {
           currentSlide = Math.max(1, currentSlide - 1);
+          // PCブラウザ上で左矢印キーイベントを発火（ブラウザ内のGoogleスライド/PDF/Webスライドを前へ戻す）
+          try {
+            window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', keyCode: 37, bubbles: true }));
+            window.dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowLeft', keyCode: 37, bubbles: true }));
+          } catch (e) {}
         }
         updateHostDisplay();
-        sendPeerMessage({ type: 'sync_state', slide: currentSlide });
+        if (peerConnections && peerConnections.length > 0) {
+          peerConnections.forEach(c => {
+            if (c && c.open) c.send({ type: 'sync_state', slide: currentSlide });
+          });
+        }
 
-        // Win32 Nativeキーストローク（keybd_event）を確実に実行
-        sendToNativeServer(data);
+        // サーバー側で既に実行済みのリレー通知でない場合のみ Win32 Nativeキーストロークを実行（二重実行防止）
+        if (!alreadyHandled) {
+          sendToNativeServer(data);
+        }
       }
-      // 2. OS物理マウスカーソル移動 (Win32 mouse_event 直結)
-      else if (data.type === 'mouse_move') {
-        sendToNativeServer(data);
+      // 2. マウス・トラックパッド・クリップボード・キーボード操作
+      else if (data.type === 'mouse_move' || data.type === 'mouse_click' ||
+               data.type === 'mouse_scroll' || data.type === 'mouse_drag' || 
+               data.type === 'clipboard' || data.type === 'keyboard_text' || 
+               data.type === 'keyboard_key' || data.type === 'batch') {
+        
+        // A. レーザーポインター / バーチャルカーソル（Vercel単体で即座にPC画面上に描画・bat不要）
+        if (data.type === 'mouse_move') {
+          const dx = Number(data.dx) || 0;
+          const dy = Number(data.dy) || 0;
+          pointerX = Math.max(12, Math.min(window.innerWidth - 12, pointerX + dx));
+          pointerY = Math.max(12, Math.min(window.innerHeight - 12, pointerY + dy));
+          if (laserPointer) {
+            laserPointer.classList.add('active');
+            laserPointer.style.left = `${pointerX}px`;
+            laserPointer.style.top = `${pointerY}px`;
+            clearTimeout(pointerHideTimeout);
+            pointerHideTimeout = setTimeout(() => {
+              if (laserPointer) laserPointer.classList.remove('active');
+            }, 3000);
+          }
+          updateVirtualCursorPosition(dx, dy);
+        } else if (data.type === 'mouse_click') {
+          if (laserPointer) {
+            laserPointer.classList.add('clicking');
+            setTimeout(() => { if (laserPointer) laserPointer.classList.remove('clicking'); }, 150);
+          }
+          triggerVirtualCursorClick(data.button);
+        } else if (data.type === 'mouse_drag') {
+          setVirtualCursorDrag(data.state);
+        } else if (data.type === 'mouse_scroll') {
+          try {
+            window.scrollBy({ top: Number(data.delta) || 0, behavior: 'smooth' });
+          } catch (e) {
+            window.scrollBy(0, Number(data.delta) || 0);
+          }
+        } else if (data.type === 'batch' && Array.isArray(data.actions)) {
+          for (const act of data.actions) {
+            handleIncomingPeerData(act);
+          }
+          return;
+        }
+
+        // B. ローカルNativeサーバー（start.bat）が起動していればOS物理マウスにも連動（ハイブリッド）
+        if (!alreadyHandled) {
+          sendToNativeServer(data);
+        }
       }
-      // 3. マウスクリック (Win32 mouse_event 直結)
-      else if (data.type === 'mouse_click') {
-        sendToNativeServer(data);
-      }
-      // 4. マウスドラッグ・スクロール・クリップボード・キーボード
-      else if (data.type === 'mouse_scroll' || data.type === 'mouse_drag' || 
-                 data.type === 'clipboard' || data.type === 'keyboard_text' || 
-                 data.type === 'keyboard_key') {
-        sendToNativeServer(data);
-      }
-      // 5. ライブカメラ制御
+      // 3. ライブカメラ制御
       else if (data.type === 'camera_start') {
         openHostCameraWindow(data.layout);
         tryAutoEnterPip();
@@ -5152,13 +6121,12 @@
       else if (data.type === 'camera_closed_by_host') {
         stopLiveCamera();
       }
-      // 6. システム診断情報のリクエスト受信 (スマホからの要求に応えてPCのスペックを返信)
+      // 4. システム診断情報のリクエスト受信 (スマホからの要求に応えてPCのスペックを返信)
       else if (data.type === 'request_system_info') {
         collectSystemDiagnostics().then(sysData => {
           sendPeerMessage({ type: 'system_info_data', payload: sysData });
         });
       }
-
     }
 
     if (btnCopyHostUrl) {
@@ -5190,6 +6158,7 @@
 
     // Initial
     renderTimerUI();
+    initWebRTCPeer();
     const isStatic = checkIsStaticHost();
     const cfg = getTargetServerConfig();
     if (!isStatic || cfg.hasCustomServer) {
@@ -5199,9 +6168,11 @@
         if (serverInfo && serverInfo.hasTunnel) clearInterval(infoInterval);
       }, 2000);
       connectWebSocket();
+    } else if (!checkIsMobileDevice()) {
+      // PCで静的ホスト（Vercel/Pages等）を開いている場合もローカル server.js (127.0.0.1:3000) の稼働を自動検出
+      startNativeBridgeProbing();
     }
     connectNativeServer();
-    initWebRTCPeer();
     requestWakeLock();
   </script>
 </body>

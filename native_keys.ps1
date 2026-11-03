@@ -17,90 +17,25 @@ public class NativeKeys {
     [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
     public static extern uint SetThreadExecutionState(uint esFlags);
 
-    public const uint KEYEVENTF_EXTENDEDKEY = 0x0001;
-    public const uint KEYEVENTF_KEYUP = 0x0002;
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool SetProcessDPIAware();
 
-    // スリープ抑止用フラグ (Win32 API)
-    public const uint ES_CONTINUOUS = 0x80000000;
-    public const uint ES_SYSTEM_REQUIRED = 0x00000001;
-    public const uint ES_DISPLAY_REQUIRED = 0x00000002;
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool GetCursorPos(out POINT lpPoint);
 
-    public static void PreventSleep() {
-        SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED);
-    }
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool SetCursorPos(int X, int Y);
 
-    public static void AllowSleep() {
-        SetThreadExecutionState(ES_CONTINUOUS);
-    }
-
-    public static void Press(byte vk, bool isExtended = true) {
-        byte scan = (byte)MapVirtualKey((uint)vk, 0);
-        uint flags = isExtended ? KEYEVENTF_EXTENDEDKEY : 0;
-        keybd_event(vk, scan, flags, UIntPtr.Zero);
-        System.Threading.Thread.Sleep(35);
-        keybd_event(vk, scan, flags | KEYEVENTF_KEYUP, UIntPtr.Zero);
-    }
     [DllImport("user32.dll", SetLastError = true)]
     public static extern void mouse_event(uint dwFlags, int dx, int dy, int dwData, UIntPtr dwExtraInfo);
 
-    public const uint MOUSEEVENTF_MOVE      = 0x0001;
-    public const uint MOUSEEVENTF_LEFTDOWN  = 0x0002;
-    public const uint MOUSEEVENTF_LEFTUP    = 0x0004;
-    public const uint MOUSEEVENTF_RIGHTDOWN = 0x0008;
-    public const uint MOUSEEVENTF_RIGHTUP   = 0x0010;
-    public const uint MOUSEEVENTF_WHEEL     = 0x0800;
-
-    [DllImport("user32.dll")]
-    public static extern bool GetCursorPos(out POINT lpPoint);
-
-    [DllImport("user32.dll")]
-    public static extern bool SetCursorPos(int X, int Y);
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
 
     [StructLayout(LayoutKind.Sequential)]
     public struct POINT {
         public int X;
         public int Y;
-    }
-
-    public static void MouseMove(int dx, int dy) {
-        POINT p;
-        if (GetCursorPos(out p)) {
-            SetCursorPos(p.X + dx, p.Y + dy);
-        } else {
-            mouse_event(MOUSEEVENTF_MOVE, dx, dy, 0, UIntPtr.Zero);
-        }
-    }
-
-    public static void MouseLeftClick() {
-        mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, UIntPtr.Zero);
-        System.Threading.Thread.Sleep(15);
-        mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, UIntPtr.Zero);
-    }
-
-    public static void MouseRightClick() {
-        mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, UIntPtr.Zero);
-        System.Threading.Thread.Sleep(15);
-        mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, UIntPtr.Zero);
-    }
-
-    public static void MouseLeftDown() {
-        mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, UIntPtr.Zero);
-    }
-
-    public static void MouseLeftUp() {
-        mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, UIntPtr.Zero);
-    }
-
-    public static void MouseScroll(int delta) {
-        mouse_event(MOUSEEVENTF_WHEEL, 0, 0, delta, UIntPtr.Zero);
-    }
-
-    public static void Copy() {
-        keybd_event(0x11, 0, 0, UIntPtr.Zero); // VK_CONTROL
-        keybd_event(0x43, 0, 0, UIntPtr.Zero); // VK_C
-        System.Threading.Thread.Sleep(30);
-        keybd_event(0x43, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
-        keybd_event(0x11, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -142,11 +77,140 @@ public class NativeKeys {
         public ushort wParamH;
     }
 
+    public const uint INPUT_MOUSE    = 0;
     public const uint INPUT_KEYBOARD = 1;
     public const uint KEYEVENTF_UNICODE = 0x0004;
+    public const uint KEYEVENTF_EXTENDEDKEY = 0x0001;
+    public const uint KEYEVENTF_KEYUP = 0x0002;
 
-    [DllImport("user32.dll", SetLastError = true)]
-    public static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+    public const uint MOUSEEVENTF_MOVE      = 0x0001;
+    public const uint MOUSEEVENTF_LEFTDOWN  = 0x0002;
+    public const uint MOUSEEVENTF_LEFTUP    = 0x0004;
+    public const uint MOUSEEVENTF_RIGHTDOWN = 0x0008;
+    public const uint MOUSEEVENTF_RIGHTUP   = 0x0010;
+    public const uint MOUSEEVENTF_WHEEL     = 0x0800;
+
+    // スリープ抑止用フラグ (Win32 API)
+    public const uint ES_CONTINUOUS = 0x80000000;
+    public const uint ES_SYSTEM_REQUIRED = 0x00000001;
+    public const uint ES_DISPLAY_REQUIRED = 0x00000002;
+
+    public static void PreventSleep() {
+        SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED);
+    }
+
+    public static void AllowSleep() {
+        SetThreadExecutionState(ES_CONTINUOUS);
+    }
+
+    // Googleスライド・PowerPoint高信頼キーストローク送信
+    public static void Press(byte vk, bool isExtended = true) {
+        ushort scan = (ushort)MapVirtualKey((uint)vk, 0);
+        if (scan == 0) {
+            if (vk == 0x27) scan = 0x4D; // VK_RIGHT (右矢印)
+            else if (vk == 0x25) scan = 0x4B; // VK_LEFT (左矢印)
+            else if (vk == 0x26) scan = 0x48; // VK_UP (上矢印)
+            else if (vk == 0x28) scan = 0x50; // VK_DOWN (下矢印)
+            else if (vk == 0x20) scan = 0x39; // VK_SPACE (スペース)
+            else if (vk == 0x74) scan = 0x3F; // VK_F5 (スライドショー開始)
+            else if (vk == 0x1B) scan = 0x01; // VK_ESCAPE (スライドショー終了)
+        }
+
+        uint flags = isExtended ? KEYEVENTF_EXTENDEDKEY : 0;
+
+        try {
+            int inputSize = Marshal.SizeOf(typeof(INPUT));
+            INPUT[] inputs = new INPUT[2];
+
+            inputs[0].type = INPUT_KEYBOARD;
+            inputs[0].u.ki.wVk = vk;
+            inputs[0].u.ki.wScan = scan;
+            inputs[0].u.ki.dwFlags = flags;
+            inputs[0].u.ki.time = 0;
+            inputs[0].u.ki.dwExtraInfo = UIntPtr.Zero;
+
+            inputs[1].type = INPUT_KEYBOARD;
+            inputs[1].u.ki.wVk = vk;
+            inputs[1].u.ki.wScan = scan;
+            inputs[1].u.ki.dwFlags = flags | KEYEVENTF_KEYUP;
+            inputs[1].u.ki.time = 0;
+            inputs[1].u.ki.dwExtraInfo = UIntPtr.Zero;
+
+            // KeyDown 送信
+            SendInput(1, new INPUT[] { inputs[0] }, inputSize);
+            keybd_event(vk, (byte)scan, flags, UIntPtr.Zero);
+
+            System.Threading.Thread.Sleep(40);
+
+            // KeyUp 送信
+            SendInput(1, new INPUT[] { inputs[1] }, inputSize);
+            keybd_event(vk, (byte)scan, flags | KEYEVENTF_KEYUP, UIntPtr.Zero);
+            return;
+        } catch (Exception) {}
+
+        // フォールバック: レガシー keybd_event
+        keybd_event(vk, (byte)scan, flags, UIntPtr.Zero);
+        System.Threading.Thread.Sleep(40);
+        keybd_event(vk, (byte)scan, flags | KEYEVENTF_KEYUP, UIntPtr.Zero);
+    }
+
+    // 高DPI環境・マルチモニターでの座標スケーリング誤差を防止
+    public static void InitDpiAwareness() {
+        try { SetProcessDPIAware(); } catch {}
+    }
+
+    // SetCursorPosで1px単位の微小移動も確実に反映し、mouse_eventでWM_MOUSEMOVE（ホバー・ドラッグ追従）を発火
+    public static void MouseMove(int dx, int dy) {
+        POINT p;
+        if (GetCursorPos(out p)) {
+            if (SetCursorPos(p.X + dx, p.Y + dy)) {
+                mouse_event(MOUSEEVENTF_MOVE, 0, 0, 0, UIntPtr.Zero);
+                return;
+            }
+        }
+        mouse_event(MOUSEEVENTF_MOVE, dx, dy, 0, UIntPtr.Zero);
+    }
+
+    public static void MouseLeftClick() {
+        mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, UIntPtr.Zero);
+        System.Threading.Thread.Sleep(18);
+        mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, UIntPtr.Zero);
+    }
+
+    public static void MouseRightClick() {
+        mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, UIntPtr.Zero);
+        System.Threading.Thread.Sleep(18);
+        mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, UIntPtr.Zero);
+    }
+
+    public static void MouseLeftDown() {
+        mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, UIntPtr.Zero);
+    }
+
+    public static void MouseLeftUp() {
+        mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, UIntPtr.Zero);
+    }
+
+    public static void MouseScroll(int delta) {
+        if (delta == 0) return;
+        // スマホからの微小スクロール量をWin32 WHEEL_DELTA (120基準) に合わせて自然スケーリング
+        int wheelAmount = delta * 6;
+        mouse_event(MOUSEEVENTF_WHEEL, 0, 0, wheelAmount, UIntPtr.Zero);
+    }
+
+    public static void Copy() {
+        // VK_CONTROL: 0x11, VK_C: 0x43
+        byte scanCtrl = (byte)MapVirtualKey(0x11, 0);
+        byte scanC = (byte)MapVirtualKey(0x43, 0);
+
+        keybd_event(0x11, scanCtrl, 0, UIntPtr.Zero);
+        System.Threading.Thread.Sleep(30);
+        keybd_event(0x43, scanC, 0, UIntPtr.Zero);
+        System.Threading.Thread.Sleep(45);
+        keybd_event(0x43, scanC, KEYEVENTF_KEYUP, UIntPtr.Zero);
+        System.Threading.Thread.Sleep(30);
+        keybd_event(0x11, scanCtrl, KEYEVENTF_KEYUP, UIntPtr.Zero);
+    }
 
     // Unicode文字（日本語漢字・ひらがな・英文・記号）を直接アクティブウィンドウへ送信
     public static void SendText(string text) {
@@ -264,14 +328,18 @@ Add-Type -TypeDefinition $code -Language CSharp
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 [Console]::InputEncoding = [System.Text.Encoding]::UTF8
 
-# エンジン起動時にPCの自動スリープ・画面消灯を自動抑止
+# 高DPI環境でのマウス座標ズレ防止と自動スリープ・画面消灯の自動抑止
+[NativeKeys]::InitDpiAwareness()
 [NativeKeys]::PreventSleep()
 Write-Output "NATIVE_KEY_ENGINE_READY"
 
 try {
     while ($null -ne ($line = [Console]::ReadLine())) {
         $line = $line.Trim()
+        if ($line -eq "") { continue }
         if ($line -eq "QUIT") { break }
+
+        try {
 
         # --- 1. スライド操作 ---
         if ($line -eq "NEXT") {
@@ -341,11 +409,13 @@ try {
 
         # --- 5. トラックパッド & マウス操作 ---
         } elseif ($line.StartsWith("MOUSE_MOVE ")) {
-            $parts = $line.Split(" ")
-            if ($parts.Length -ge 3) {
-                [int]$dx = [int]$parts[1]
-                [int]$dy = [int]$parts[2]
-                [NativeKeys]::MouseMove($dx, $dy)
+            $parts = -split $line.Substring(11).Trim()
+            if ($parts.Length -ge 2) {
+                [int]$dx = 0
+                [int]$dy = 0
+                if ([int]::TryParse($parts[0], [ref]$dx) -and [int]::TryParse($parts[1], [ref]$dy)) {
+                    [NativeKeys]::MouseMove($dx, $dy)
+                }
             }
         } elseif ($line -eq "MOUSE_CLICK_LEFT") {
             [NativeKeys]::MouseLeftClick()
@@ -360,10 +430,12 @@ try {
             [NativeKeys]::MouseLeftUp()
             Write-Output "OK"
         } elseif ($line.StartsWith("MOUSE_SCROLL ")) {
-            $parts = $line.Split(" ")
-            if ($parts.Length -ge 2) {
-                [int]$delta = [int]$parts[1]
-                [NativeKeys]::MouseScroll($delta)
+            $parts = -split $line.Substring(13).Trim()
+            if ($parts.Length -ge 1) {
+                [int]$delta = 0
+                if ([int]::TryParse($parts[0], [ref]$delta)) {
+                    [NativeKeys]::MouseScroll($delta)
+                }
             }
         } elseif ($line -eq "CMD_COPY") {
             [NativeKeys]::Copy()
@@ -398,6 +470,9 @@ try {
             elseif ($key -eq "DOWN") { [NativeKeys]::Press(0x28, $true); Write-Output "OK" }
             elseif ($key -eq "LEFT") { [NativeKeys]::Press(0x25, $true); Write-Output "OK" }
             elseif ($key -eq "RIGHT") { [NativeKeys]::Press(0x27, $true); Write-Output "OK" }
+        }
+        } catch {
+            Write-Output "ERR_CMD: $($_.Exception.Message)"
         }
     }
 } finally {
