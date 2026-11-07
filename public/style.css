@@ -3,7 +3,7 @@
    Plus Jakarta Sans & Apple Native Typography (SF Pro, Smooth Antialiased)
    ============================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
 
 :root {
   /* Brand & Accent */
@@ -25,7 +25,7 @@
   --color-ink-subtle: #86868b;
 
   /* Inverse (Charcoal) */
-  --color-inverse-canvas: #1d1d1f;
+  --color-inverse-canvas: #1d1d1d;
   --color-inverse-surface-1: #2c2c2e;
   --color-inverse-ink: #ffffff;
   --color-inverse-ink-muted: #a1a1a6;
@@ -49,8 +49,12 @@
   --rounded-none: 0px;
 
   /* Typography Settings (Apple / Modern OS Native ＋ Plus Jakarta Sans) */
-  --font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Plus Jakarta Sans', 'Segoe UI', Roboto, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+  --font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+    "Plus Jakarta Sans", "Segoe UI", Roboto, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", "JetBrains Mono", Menlo, Consolas,
+    monospace;
 }
 
 * {
